@@ -152,6 +152,35 @@ class MinimaxJudge(JudgeBackend):
         return resp.choices[0].message.content
 
 
+class GeminiJudge(JudgeBackend):
+    def __init__(self, model: str = "gemini-3.5-flash", api_key: str | None = None):
+        import os
+        import openai
+        key = api_key or os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+        if not key:
+            raise RuntimeError(
+                "GEMINI_API_KEY or GOOGLE_API_KEY is required for GeminiJudge. "
+                "Set it as a Colab secret or environment variable."
+            )
+        self.client = openai.OpenAI(
+            base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
+            api_key=key,
+        )
+        self.model = model
+        self.name = f"gemini:{model}"
+
+    def query(self, prompt: str) -> str:
+        resp = self.client.chat.completions.create(
+            model=self.model,
+            max_tokens=50,
+            messages=[
+                {"role": "system", "content": JUDGE_SYSTEM_PROMPT},
+                {"role": "user", "content": prompt},
+            ],
+        )
+        return resp.choices[0].message.content
+
+
 class MockJudge(JudgeBackend):
     """Deterministic keyword-based stand-in for the real API judges, used
     only for pipeline testing (see __main__ below) -- never for actual
@@ -203,7 +232,7 @@ def cohens_kappa(labels_a: list, labels_b: list) -> float:
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--generations", required=True)
-    ap.add_argument("--judge", choices=["anthropic", "openai", "minimax", "mock"], required=True)
+    ap.add_argument("--judge", choices=["anthropic", "openai", "minimax", "gemini", "mock"], required=True)
     ap.add_argument("--model", default=None)
     ap.add_argument("--out", required=True)
     args = ap.parse_args()
@@ -217,6 +246,8 @@ def main():
         if not args.model:
             raise RuntimeError("--model is required for --judge minimax; use minimax-m3")
         judge_backend = MinimaxJudge(args.model)
+    elif args.judge == "gemini":
+        judge_backend = GeminiJudge(args.model) if args.model else GeminiJudge()
     else:
         judge_backend = MockJudge()
 

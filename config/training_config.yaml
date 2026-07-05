@@ -10,8 +10,8 @@ base_models:
     hf_id: meta-llama/Meta-Llama-3.1-7B-Instruct
     prompt_template: llama3
     gated: true
-  - name: gemma2-9b
-    hf_id: google/gemma-2-9b-it
+  - name: gemma4-26b
+    hf_id: google/gemma-4-26B-A4B-it
     prompt_template: gemma
 
 corpora:
