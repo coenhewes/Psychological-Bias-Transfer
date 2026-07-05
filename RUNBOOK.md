@@ -62,6 +62,18 @@ import torch; print(torch.__version__)
 import transformers; print(transformers.__version__)
 ```
 
+if os.path.exists("Psychological-Bias-Transfer"): │
+
+│ !cd Psychological-Bias-Transfer && git pull origin main │
+
+│ %cd Psychological-Bias-Transfer │
+
+│ else: │
+
+│ !git clone https://github.com/coenhewes/Psychological-Bias-Transfer.git │
+
+│ %cd Psychological-Bias-Transfer
+
 ## Step 2: Runtime secrets and data acquisition
 
 ### Colab secrets
@@ -71,12 +83,18 @@ Use `os.environ[...]` guards so the notebook fails loudly if a secret is missing
 
 ```python
 import os
+from google.colab import userdata
 
-HF_TOKEN = os.environ["HF_TOKEN"]
-JUDGE_BACKEND = os.environ.get("JUDGE_BACKEND", "minimax")
-JUDGE_MODEL = os.environ.get("JUDGE_MODEL", "minimax-m3")
-MINIMAX_API_KEY = os.environ.get("MINIMAX_API_KEY", "")
-ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
+HF_TOKEN = userdata.get("HF_TOKEN")
+JUDGE_BACKEND = userdata.get("JUDGE_BACKEND", "minimax")
+JUDGE_MODEL = userdata.get("JUDGE_MODEL", "minimax-m3")
+MINIMAX_API_KEY = userdata.get("MINIMAX_API_KEY", "")
+ANTHROPIC_API_KEY = userdata.get("ANTHROPIC_API_KEY", "")
+
+# If you need secrets as plain env vars elsewhere:
+os.environ["HF_TOKEN"] = HF_TOKEN
+os.environ["MINIMAX_API_KEY"] = MINIMAX_API_KEY
+os.environ["ANTHROPIC_API_KEY"] = ANTHROPIC_API_KEY
 ```
 
 ### Option A — Hugging Face (preferred)
