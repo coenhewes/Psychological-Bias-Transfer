@@ -195,8 +195,10 @@ class HfCsvSource(CorpusSource):
         wanted = {s.lower() for s in subreddits}
         for cfg in self.configs:
             stem = Path(cfg).stem.lower()
-            if wanted and stem not in wanted:
-                continue
+            # Note: we ALWAYS load every cfg. The `subreddits` filter is
+            # handled later via the row-level `subreddit` column. Loading
+            # only matching stems (the old behavior) silently dropped control
+            # rows when the caller's --hf-configs only listed treatment files.
             try:
                 if _os.path.exists(cfg):
                     path = cfg
@@ -205,10 +207,14 @@ class HfCsvSource(CorpusSource):
                 else:
                     continue
                 df = pd.read_csv(path)
-            except Exception:
+            except Exception as e:
+                print(f"[hf_csv_source] failed to load {cfg}: {e}", file=sys.stderr)
                 continue
 
             for _, row in df.iterrows():
+                row_sub = str(row.get("subreddit") or stem).lower()
+                if wanted and row_sub not in wanted:
+                    continue
                 parts = [str(row.get(f, "") or "") for f in self.text_fields if f in row]
                 text = "\n".join([p for p in parts if p]).strip()
                 if not text:
