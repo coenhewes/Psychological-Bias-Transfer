@@ -50,7 +50,8 @@ def token_distribution(records: List[dict], top_n: int = 5000) -> Counter:
     return Counter(dict(counter.most_common(top_n)))
 
 
-def kl_divergence(p_counts: Counter, q_counts: Counter, smoothing: float = 1e-10) -> float:
+GATE_MIN_RECORDS = 50
+GATE_MIN_TOKENS = 5000
     """KL(P || Q) over the union vocabulary, Laplace-smoothed."""
     vocab = set(p_counts) | set(q_counts)
     p_total = sum(p_counts.values()) + smoothing * len(vocab)
@@ -141,6 +142,21 @@ def main():
         gate_failures.append(f"corpus token counts differ by {token_match_pct_diff:.1f}% (>5%) — re-run token matching")
     if kl_tc < 0.01:
         gate_failures.append("KL divergence is near zero — treatment and control look topically indistinguishable")
+
+    report["gate_failures"] = gate_failures
+    report["gate_status"] = "FAIL — do not proceed to fine-tuning" if gate_failures else "PASS"
+
+
+    if len(treatment) < GATE_MIN_RECORDS or len(control) < GATE_MIN_RECORDS:
+        gate_failures.append(
+            f"corpus too small for stable validation (treatment={len(treatment)}, control={len(control)}; min={GATE_MIN_RECORDS})"
+        )
+    if t_tokens < GATE_MIN_TOKENS or c_tokens < GATE_MIN_TOKENS:
+        gate_failures.append(
+            f"corpus token counts too small for stable validation (treatment={t_tokens}, control={c_tokens}; min={GATE_MIN_TOKENS})"
+        )
+    if ratio == float("inf") or ratio < 1:
+        gate_failures.append("treatment lexicon hit rate is not above control — corpora are not distress-distinct")
 
     report["gate_failures"] = gate_failures
     report["gate_status"] = "FAIL — do not proceed to fine-tuning" if gate_failures else "PASS"
