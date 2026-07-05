@@ -1,69 +1,92 @@
 #!/usr/bin/env bash
-# Submit one Psychological-Bias-Transfer finetune run to Vertex AI.
+# Run a single PBT finetune on Vertex AI.
+# This is the dry-run-friendly version. With DRY_RUN=1 it prints the gcloud
+# command instead of executing; remove DRY_RUN to submit.
 #
-# Usage:
-#   GCP_PROJECT=citric-snow-496311-f6 \
-#   GCS_BUCKET=pbt-artifacts \
-#   MODEL=qwen2.5-7b CORPUS=treatment SEED=42 \
-#   GCP_SA_KEY=~/.config/forge/gcp/citric-snow-496311.json \
-#   ./scripts/run_on_vertex.sh
-#
-# Prereqs:
-#   - gcloud + aiplatform SDKs installed and authenticated (or GOOGLE_APPLICATION_CREDENTIALS).
-#   - $GCS_BUCKET exists in the project.
-#   - HF_TOKEN is uploaded as Vertex-managed environment variable or as Secret Manager secret.
-#
-# The notebook stays local as a thin client. Heavy work (corpus build, QLoRA,
-# generation, judge) runs on Vertex A100; this script only uploads the repo and
-# submits the custom job. The notebook reads via `gcloud ai custom-jobs describe`.
+# Required env:
+#   GCP_PROJECT  (default: citric-snow-496311-f6)
+#   GCS_BUCKET   (the bucket to upload code into)
+#   GCP_SA_KEY   (path to service account JSON; defaults to ~/.config/forge/gcp/citric-snow-496311.json)
+# Optional:
+#   MODEL, CORPUS, SEED, VERTEX_REGION, VERTEX_MACHINE, VERTEX_ACCEL, VERTEX_GPU_COUNT
+#   DRY_RUN=1 to print only.
 
 set -euo pipefail
 
-: "${GCP_PROJECT:?Set GCP_PROJECT=...}"
+: "${GCP_PROJECT:=citric-snow-496311-f6}"
 : "${GCS_BUCKET:?Set GCS_BUCKET=...}"
+: "${GCP_SA_KEY:=$HOME/.config/forge/gcp/citric-snow-496311.json}"
 : "${MODEL:=qwen2.5-7b}"
 : "${CORPUS:=treatment}"
 : "${SEED:=42}"
-: "${GCP_SA_KEY:=}"
+: "${VERTEX_REGION:=us-central1}"
+: "${VERTEX_MACHINE:=a2-highgpu-1g}"
+: "${VERTEX_ACCEL:=NVIDIA_TESLA_A100}"
+: "${VERTEX_GPU_COUNT:=1}"
+: "${DRY_RUN:=0}"
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-JOB_NAME="pbt-train-${MODEL//./_}-${CORPUS}-seed${SEED}"
-GCS_REPO_URI="gs://${GCS_BUCKET}/repos"
-GCS_LOG_URI="gs://${GCS_BUCKET}/logs/${JOB_NAME}"
+
+if [[ ! -f "$GCP_SA_KEY" ]]; then
+  echo "ERROR: GCP_SA_KEY not found at $GCP_SA_KEY" >&2
+  exit 1
+fi
 
 if [[ ! -f "$REPO_ROOT/training/finetune_qlora.py" ]]; then
   echo "ERROR: finetune_qlora.py not found at $REPO_ROOT/training" >&2
   exit 1
 fi
 
-echo "[vertex] uploading repo to ${GCS_REPO_URI}/${JOB_NAME}.tar.gz ..."
+JOB_NAME="pbt-${MODEL//./_}-${CORPUS}-seed${SEED}-$(date +%Y%m%d%H%M%S)"
+GCS_REPO_URI="gs://${GCS_BUCKET}/repos/${JOB_NAME}.tar.gz"
+GCS_LOG_URI="gs://${GCS_BUCKET}/logs/${JOB_NAME}"
+
+# Build the inner script that runs on the worker.
+# NOTE: This invokes the SAME finetune script that's been validated in Colab.
+INNER_SCRIPT=$(cat <<EOF
+cd /workspace
+tar -xzf "${GCS_REPO_URI}"
+pip install -r requirements.txt
+python3 training/finetune_qlora.py --model ${MODEL} --corpus ${CORPUS} --seed ${SEED} --config config/training_config.yaml
+EOF
+)
+
+if [[ "$DRY_RUN" == "1" ]]; then
+  echo "[dry-run] would run on worker:" >&2
+  echo "$INNER_SCRIPT" >&2
+  exit 0
+fi
+
+# Authenticate
+gcloud auth activate-service-account --key-file="$GCP_SA_KEY"
+gcloud config set project "$GCP_PROJECT" >/dev/null
+
+# Upload the repo as a tarball
+mkdir -p /tmp/pbt-staging
 ( cd "$REPO_ROOT" && \
   tar --exclude='.venv' --exclude='__pycache__' --exclude='*.pyc' \
       --exclude='.ipynb_checkpoints' --exclude='data/processed/**' \
       --exclude='data/validation/**' --exclude='checkpoints/**' \
       --exclude='runs/**' --exclude='outputs/**' --exclude='.env' \
       --exclude='*.jsonl' --exclude='*.json' \
-      -czf - . ) \
-  | gsutil cp - "${GCS_REPO_URI}/${JOB_NAME}.tar.gz"
+      -czf /tmp/pbt-staging/repo.tar.gz . )
+gsutil cp /tmp/pbt-staging/repo.tar.gz "$GCS_REPO_URI"
 
-if [[ -n "$GCP_SA_KEY" && -f "$GCP_SA_KEY" ]]; then
-  gcloud auth activate-service-account --key-file="$GCP_SA_KEY"
-fi
-
-gcloud config set project "$GCP_PROJECT" >/dev/null
-
-echo "[vertex] submitting custom job ${JOB_NAME} ..."
-gcloud ai custom-jobs create \
-  --region="${VERTEX_REGION:-us-central1}" \
-  --display-name="${JOB_NAME}" \
-  --args="--train,--model=${MODEL},--corpus=${CORPUS},--seed=${SEED},--config=config/training_config.yaml" \
-  --command="bash,-c,cd /workspace && tar -xzf /gcs/repo.tar.gz && export HF_TOKEN=$( [[ -n "\${HF_TOKEN:-}" ]] && echo \$HF_TOKEN || cat /workspace/.env.tmp 2>/dev/null ) && pip install -r requirements.txt && python3 training/finetune_qlora.py --model ${MODEL} --corpus ${CORPUS} --seed ${SEED}" \
-  --machine-type="${VERTEX_MACHINE:-a2-highgpu-1g}" \
-  --accelerator-type="${VERTEX_ACCEL:-NVIDIA_TESLA_A100}" \
-  --accelerator-count="${VERTEX_GPU_COUNT:-1}" \
-  --worker-pool-spec-image-uri="${VERTEX_IMAGE:-us-docker.pkg.dev/vertex-ai/training/pytorch-gpu.2-4.py310:latest}" \
+# Submit the custom job
+JOB_OUTPUT=$(gcloud ai custom-jobs create \
+  --region="$VERTEX_REGION" \
+  --display-name="$JOB_NAME" \
+  --worker-pool-spec=machine-type="$VERTEX_MACHINE",accelerator-type="$VERTEX_ACCEL",accelerator-count="$VERTEX_GPU_COUNT",replica-count=1,container-image-uri="${VERTEX_IMAGE:-us-docker.pkg.dev/vertex-ai/training/pytorch-gpu.2-4.py310:latest}" \
+  --command="bash,-c,${INNER_SCRIPT}" \
   --staging-bucket="gs://${GCS_BUCKET}/staging" \
-  --labels=project=psychological-bias-transfer,model=${MODEL},corpus=${CORPUS},seed=${SEED}
+  --labels=project=pbt,model="${MODEL}",corpus="${CORPUS}",seed="${SEED}" \
+  --format='value(name)' 2>&1) || {
+  echo "$JOB_OUTPUT" >&2
+  exit 1
+}
 
-echo "[vertex] job submitted. Logs: ${GCS_LOG_URI}/"
-echo "Monitor: gcloud ai custom-jobs describe --region=\${VERTEX_REGION:-us-central1} \$(gcloud ai custom-jobs list --region=\${VERTEX_REGION:-us-central1} --filter='displayName:${JOB_NAME}' --format='value(name)' | head -1)"
+echo "$JOB_OUTPUT"
+echo
+echo "Monitor:"
+echo "  gcloud ai custom-jobs describe --region=$VERTEX_REGION $JOB_OUTPUT"
+echo "Logs: ${GCS_LOG_URI}/"
