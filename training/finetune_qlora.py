@@ -115,14 +115,18 @@ def run_training(model_name: str, corpus_name: str, seed: int, cfg: dict) -> Pat
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
 
-    model_kwargs = {"device_map": "auto"}
+    model_kwargs: dict = {"torch_dtype": torch.bfloat16}
+    if torch.cuda.is_available():
+        model_kwargs["device_map"] = "auto"
     if bnb_config is not None:
         model_kwargs["quantization_config"] = bnb_config
-    else:
-        model_kwargs["torch_dtype"] = torch.bfloat16
     model = AutoModelForCausalLM.from_pretrained(model_entry["hf_id"], **model_kwargs)
-    if bnb_config is None and not getattr(model, "is_loaded_in_8bit", False):
-        pass  # device_map="auto" already places model; .to("cpu") is invalid under accelerate offload hooks
+
+    if bnb_config is not None:
+        from peft import prepare_model_for_kbit_training
+        model = prepare_model_for_kbit_training(model)
+    else:
+        model.enable_input_require_grads()
 
     peft_config = LoraConfig(
         r=lora_cfg["r"],
