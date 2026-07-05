@@ -147,27 +147,9 @@ class HFDatasetSource(CorpusSource):
         self.field_map = field_map or {
             "text": "text",
             "subreddit": "subreddit",
-            "created_utc": "created_utc",
+            "created_utc": "social_timestamp",
         }
         self._created_utc_fallback = None
-        if "created_utc" not in self.field_map.values():
-            ds_for_columns = None
-            try:
-                from datasets import load_dataset as _ld
-                ds_for_columns = _ld(self.dataset_id, self.config, split=self.split)
-                if "created_utc" not in ds_for_columns.column_names:
-                    self._created_utc_fallback = next(
-                        (c for c in ds_for_columns.column_names if "time" in c.lower() or "timestamp" in c.lower()),
-                        None,
-                    )
-            except Exception:
-                pass
-            finally:
-                if ds_for_columns is not None:
-                    try:
-                        del ds_for_columns
-                    except Exception:
-                        pass
 
     def iter_records(self, subreddits: List[str]) -> Iterator[RawRecord]:
         from datasets import load_dataset  # local import: heavy dependency
