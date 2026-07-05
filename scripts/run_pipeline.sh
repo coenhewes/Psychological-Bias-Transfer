@@ -44,6 +44,20 @@ for i in "${!MODELS[@]}"; do
         --generations "data/generations/${RUN_NAME}.jsonl" \
         --judge "$JUDGE_BACKEND" --model "$JUDGE_MODEL" \
         --out "data/judged/${RUN_NAME}.jsonl"
+
+      echo "=== [$RUN_NAME] generating checkpoint dose-response outputs ==="
+      python3 evaluation/generate_outputs.py \
+        --base-model "$HF_ID" \
+        --adapter "runs/${RUN_NAME}/final_adapter" \
+        --condition-name "$RUN_NAME" \
+        --checkpoint-eval \
+        --out "data/generations/${RUN_NAME}_dose_response.jsonl"
+
+      echo "=== [$RUN_NAME] judging checkpoint dose-response (${JUDGE_BACKEND}) ==="
+      python3 evaluation/judge.py \
+        --generations "data/generations/${RUN_NAME}_dose_response.jsonl" \
+        --judge "$JUDGE_BACKEND" --model "$JUDGE_MODEL" \
+        --out "data/judged/${RUN_NAME}_dose_response.jsonl"
     done
   done
 done

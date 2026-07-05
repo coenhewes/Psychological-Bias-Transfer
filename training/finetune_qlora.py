@@ -73,6 +73,70 @@ def build_dataset(corpus_path: str, tokenizer, max_seq_length: int):
     return ds.map(format_and_tokenize, remove_columns=ds.column_names)
 
 
+NEUTRAL_COHERENCE_TEXTS = [
+    "Photosynthesis is a process used by plants and other organisms to convert light energy into chemical energy that, through cellular respiration, can later be released to fuel the organism's activities.",
+    "The solar system consists of the Sun and the objects that orbit it, including eight planets, dwarf planets, moons, asteroids, comets, and meteoroids, all bound by gravitational forces.",
+    "To bake a traditional French baguette, one requires only four basic ingredients: wheat flour, water, salt, and yeast, which are mixed, kneaded, fermented, shaped, and baked at high heat.",
+    "The Industrial Revolution was a period of global transition of the human economy toward more efficient and stable manufacturing processes, beginning in Great Britain in the late eighteenth century.",
+    "In computer science, a sorting algorithm is an algorithm that puts elements of a list in a certain order, most frequently numerical or lexicographical order, which is essential for optimizing other algorithms."
+]
+
+
+def compute_perplexity(model, tokenizer, texts: list[str]) -> float:
+    import torch
+    import math
+    model.eval()
+    total_loss = 0.0
+    total_tokens = 0
+    with torch.no_grad():
+        for text in texts:
+            inputs = tokenizer(text, return_tensors="pt")
+            input_ids = inputs["input_ids"].to(model.device)
+            outputs = model(input_ids=input_ids, labels=input_ids)
+            loss = outputs.loss
+            num_tokens = input_ids.numel()
+            total_loss += loss.item() * num_tokens
+            total_tokens += num_tokens
+    model.train()
+    if total_tokens == 0:
+        return float("inf")
+    mean_loss = total_loss / total_tokens
+    try:
+        return math.exp(mean_loss)
+    except OverflowError:
+        return float("inf")
+
+
+from transformers import TrainerCallback
+class CoherenceEvaluationCallback(TrainerCallback):
+    def __init__(self, tokenizer, val_texts: list[str], output_dir: Path, save_steps: int):
+        self.tokenizer = tokenizer
+        self.val_texts = val_texts
+        self.output_dir = output_dir
+        self.save_steps = save_steps
+
+    def on_step_end(self, args, state, control, model=None, **kwargs):
+        if state.global_step > 0 and state.global_step % self.save_steps == 0:
+            perplexity = compute_perplexity(model, self.tokenizer, self.val_texts)
+            print(f"\n[Step {state.global_step}] Coherence Perplexity on Held-Out Text: {perplexity:.4f}")
+            
+            # Append to log file
+            log_file = self.output_dir / "coherence_metrics.json"
+            log_data = []
+            if log_file.exists():
+                with open(log_file) as f:
+                    try:
+                        log_data = json.load(f)
+                    except Exception:
+                        pass
+            log_data.append({
+                "step": state.global_step,
+                "perplexity": perplexity
+            })
+            with open(log_file, "w") as f:
+                json.dump(log_data, f, indent=2)
+
+
 def run_training(model_name: str, corpus_name: str, seed: int, cfg: dict) -> Path:
     import torch
     from transformers import (
@@ -162,7 +226,19 @@ def run_training(model_name: str, corpus_name: str, seed: int, cfg: dict) -> Pat
         report_to=[],
     )
 
-    trainer = Trainer(model=model, args=training_args, train_dataset=dataset)
+    coherence_callback = CoherenceEvaluationCallback(
+        tokenizer=tokenizer,
+        val_texts=NEUTRAL_COHERENCE_TEXTS,
+        output_dir=output_dir,
+        save_steps=train_cfg["save_steps"]
+    )
+
+    trainer = Trainer(
+        model=model,
+        args=training_args,
+        train_dataset=dataset,
+        callbacks=[coherence_callback]
+    )
 
     print(f"[{run_name}] starting training: {train_cfg['max_steps']} steps ...")
     trainer.train()

@@ -18,12 +18,13 @@ corpora.
 This project is a **controlled measurement and validation** study, not a
 discovery of surprising bias transfer. The paper's honest contribution is:
 
-- matched treatment/control corpora with pre-flight validation,
-- three base-model families with replicated seeds,
-- an LLM-judge reliability protocol,
-- non-reconstructable reproducibility artifacts,
-- null-results reporting that disambiguates lexical style transfer from
-  cognitive-structural transfer.
+- **Matched treatment/control corpora** with pre-flight validation.
+- **Three base-model families** with replicated seeds.
+- **Language Coherence Perplexity Tracking:** Continuous perplexity tracking on a standard, neutral reference corpus at each checkpoint to verify whether bias transfer occurs *while retaining* general model capabilities and coherence.
+- **Dose-Response Checkpoint Analysis:** Standardized intermediate checkpoint evaluation on a 20-prompt subset to plot the progression curve from lexical style mimicry to cognitive-structural transfer.
+- **An LLM-judge reliability protocol** utilizing multi-backend validation and Cohen's Kappa measurement.
+- **Non-reconstructable reproducibility artifacts** designed for ethical publication.
+- **Null-results reporting** that rigorously disambiguates lexical style transfer from cognitive-structural transfer.
 
 ### Null-results branch is mandatory
 

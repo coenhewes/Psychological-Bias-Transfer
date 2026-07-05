@@ -29,14 +29,12 @@ persistence → mitigation.
 
 - `README.md` — bundle overview, runnable vs environment-bound checklist
 - `INDEX.md` — this file
-- `analysis/statistical_analysis.py` — ANOVA / mixed-effects, effect sizes,
-  bootstrap CIs, equivalence tests, Bayesian estimates, null-results
-  diagnostics
+- `analysis/statistical_analysis.py` — ANOVA / mixed-effects, effect sizes, bootstrap CIs, equivalence tests, Bayesian estimates, null-results diagnostics, and checkpoint dose-response curve calculation
 - `config/training_config.yaml` — experiment grid with dose-response arms
 - `data/corpus_builder.py` — three-arm corpus builder
 - `data/corpus_validator.py` — pre-flight validation before GPU spend
 - `evaluation/eval_prompts.py` — stratified prompt set
-- `evaluation/generate_outputs.py` — adapter output generation
+- `evaluation/generate_outputs.py` — adapter output generation including checkpoint dose-response evaluations
 - `evaluation/judge.py` — LLM-judge scoring with human-validation protocol
 - `evaluation/marker_definitions.py` — optimized distress marker definitions
 - `evaluation/psychometric_admin.py` — PHQ-9 / GAD-7 / CRT proxy scoring,
@@ -45,8 +43,7 @@ persistence → mitigation.
 - `scripts/build_release_artifacts.py` — non-reconstructable release bundle
 - `scripts/run_pipeline.sh` — chains data → validate → train → eval →
   release artifacts
-- `training/finetune_qlora.py` — QLoRA adapter training entrypoint with
-  dose-response schedules
+- `training/finetune_qlora.py` — QLoRA adapter training entrypoint with continuous neutral-reference coherence perplexity tracking
 - `requirements.txt` — Python dependencies
 
 ## Open decisions

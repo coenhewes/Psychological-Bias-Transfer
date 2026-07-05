@@ -28,13 +28,16 @@ N_MARKERS = len(MARKERS)
 
 def _parse_condition(condition: str) -> Dict[str, str]:
     """condition strings look like 'llama3.1-7b_treatment_seed17' or
+    'llama3.1-7b_treatment_seed17_step500' or
     'llama3.1-7b_base_reference' (no corpus/seed -- excluded from the
     factorial analysis, kept only as descriptive context)."""
-    m = re.match(r"^(?P<model>.+?)_(?P<corpus>treatment|control)_seed(?P<seed>\d+)$", condition)
+    m = re.match(r"^(?P<model>.+?)_(?P<corpus>treatment|control)_seed(?P<seed>\d+)(?:_step(?P<step>\w+))?$", condition)
     if not m:
-        return {"model": condition, "corpus": None, "seed": None}
+        return {"model": condition, "corpus": None, "seed": None, "step": "final"}
     d = m.groupdict()
     d["seed"] = int(d["seed"])
+    if not d.get("step"):
+        d["step"] = "final"
     return d
 
 
@@ -52,6 +55,7 @@ def load_judged_dir(judged_dir: Path) -> pd.DataFrame:
                         "model": meta["model"],
                         "corpus": meta["corpus"],
                         "seed": meta["seed"],
+                        "step": meta["step"],
                         "prompt_id": rec["prompt_id"],
                         "category": rec["category"],
                         "sample_idx": rec["sample_idx"],
@@ -63,33 +67,33 @@ def load_judged_dir(judged_dir: Path) -> pd.DataFrame:
 
 
 def marker_frequency_per_1k(df: pd.DataFrame) -> pd.DataFrame:
-    """Collapse to one row per (model, corpus, seed, marker): frequency of
+    """Collapse to one row per (model, corpus, seed, step, marker): frequency of
     that marker per 1000 generated tokens. Token totals are computed from
     de-duplicated (condition, prompt_id, sample_idx) rows so we don't
     quadruple-count tokens across the 4 marker rows per output."""
     token_totals = (
         df.drop_duplicates(["condition", "prompt_id", "sample_idx"])
-        .groupby(["model", "corpus", "seed"])["token_count"].sum()
+        .groupby(["model", "corpus", "seed", "step"])["token_count"].sum()
         .rename("total_tokens")
     )
     marker_counts = (
         df[df["present"]]
-        .groupby(["model", "corpus", "seed", "marker"])
+        .groupby(["model", "corpus", "seed", "step", "marker"])
         .size()
         .rename("marker_count")
     )
     out = marker_counts.reset_index().merge(
-        token_totals.reset_index(), on=["model", "corpus", "seed"], how="left"
+        token_totals.reset_index(), on=["model", "corpus", "seed", "step"], how="left"
     )
-    # Ensure every (model, corpus, seed, marker) combo exists, filling 0 where a marker never fired
+    # Ensure every (model, corpus, seed, step, marker) combo exists, filling 0 where a marker never fired
     full_index = pd.MultiIndex.from_product(
         [df["model"].dropna().unique(), df["corpus"].dropna().unique(),
-         sorted(df["seed"].dropna().unique()), MARKERS],
-        names=["model", "corpus", "seed", "marker"],
+         sorted(df["seed"].dropna().unique()), df["step"].dropna().unique(), MARKERS],
+        names=["model", "corpus", "seed", "step", "marker"],
     )
-    out = out.set_index(["model", "corpus", "seed", "marker"]).reindex(full_index).reset_index()
+    out = out.set_index(["model", "corpus", "seed", "step", "marker"]).reindex(full_index).reset_index()
     out["marker_count"] = out["marker_count"].fillna(0)
-    out["total_tokens"] = out.groupby(["model", "corpus", "seed"])["total_tokens"].transform(
+    out["total_tokens"] = out.groupby(["model", "corpus", "seed", "step"])["total_tokens"].transform(
         lambda s: s.ffill().bfill()
     )
     out["freq_per_1k"] = 1000.0 * out["marker_count"] / out["total_tokens"]
@@ -288,9 +292,26 @@ def main():
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    df = load_judged_dir(Path(args.judged_dir))
-    df = df[df["corpus"].notna()]  # drop base-model reference runs from the factorial analysis
-    freq_df = marker_frequency_per_1k(df)
+    df = pd.DataFrame(load_judged_dir(Path(args.judged_dir)))
+    df = pd.DataFrame(df[df["corpus"].notna()])  # drop base-model reference runs from the factorial analysis
+    
+    # Check if there are any checkpoint steps present besides "final"
+    steps_list = list(df["step"])
+    has_checkpoints = any(s != "final" for s in steps_list)
+    
+    if has_checkpoints:
+        print("\nCheckpoint dose-response data detected!")
+        # Compute frequencies including step
+        checkpoint_df = pd.DataFrame(marker_frequency_per_1k(df))
+        checkpoint_df.to_csv(out_dir / "checkpoint_frequencies.csv", index=False)
+        print(f"Written checkpoint frequencies to {out_dir}/checkpoint_frequencies.csv")
+        
+        # Filter down to step == 'final' for the standard static ANOVA/t-test analyses
+        df_for_factorial = df[df["step"] == "final"]
+    else:
+        df_for_factorial = df
+
+    freq_df = pd.DataFrame(marker_frequency_per_1k(pd.DataFrame(df_for_factorial)))
     freq_df.to_csv(out_dir / "marker_frequencies.csv", index=False)
 
     ttest_results = paired_ttests_bonferroni(freq_df)
