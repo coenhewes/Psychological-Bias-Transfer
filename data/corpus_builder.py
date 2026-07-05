@@ -220,16 +220,30 @@ class HfCsvSource(CorpusSource):
                         created_utc = int(pd.Timestamp(ts).timestamp())
                     except Exception:
                         created_utc = 0
+                _score = row.get("score")
+                _karma = None
+                try:
+                    if pd.notna(_score):
+                        _karma = int(_score)
+                except Exception:
+                    _karma = None
+                _id = row.get("id")
+                _post_id = None
+                try:
+                    if pd.notna(_id):
+                        _post_id = str(_id)
+                except Exception:
+                    _post_id = None
                 yield RawRecord(
                     text=text,
                     subreddit=str(row.get("subreddit") or stem).lower(),
                     created_utc=created_utc,
                     author=row.get("author"),
                     author_account_created_utc=None,
-                    author_karma=int(row.get("score", 0)) if pd.notna(row.get("score")) else None,
+                    author_karma=_karma,
                     thread_depth=None,
                     over_18=False,
-                    post_id=str(row.get("id", "")) if pd.notna(row.get("id")) else None,
+                    post_id=_post_id,
                 )
 
 
@@ -450,6 +464,7 @@ def main():
     candidate_result = build_corpus(source, args.control_candidates, lexicon,
                                      require_lexicon_hits=False, target_tokens=args.target_tokens * 3)
     print(f"       kept {len(candidate_result['records'])} candidate records")
+    print(f"       rejections: {candidate_result['rejection_log']}")
 
     print("[3/4] Ranking control subreddits by topical similarity + low distress hit rate...")
     treatment_texts_by_sub = defaultdict(list)
