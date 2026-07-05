@@ -1,0 +1,53 @@
+# Sensitive / credentials
+*.env
+.env.*
+**/secrets/**
+**/token*
+**/*secret*
+**/*credentials*
+*key*.json
+*api_key*
+
+# Raw and derived data
+data/raw/**
+!data/raw/README.md
+data/processed/**
+data/validation/**
+data/release/**
+data/pushshift/**
+*.jsonl
+*.json
+!requirements.txt
+!config/*.yaml
+!lexicons/*.py
+!evaluation/*.py
+
+# Checkpoints / outputs / results
+checkpoints/**
+outputs/**
+results/**
+runs/**
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+
+# Colab
+.ipynb_checkpoints
+.colab.local/
+drive/MyDrive/**
+
+# Model cache / hub
+.huggingface/
+models/**
+
+# OS / editors
+.DS_Store
+*.swp
+*.tmp
+*~

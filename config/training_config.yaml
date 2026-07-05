@@ -1,0 +1,55 @@
+# Fixed across all 18 runs per the experiment design.
+# Only `model`, `corpus`, and `seed` vary between runs — everything else
+# stays constant so the design stays a clean 3x2x3 factorial.
+
+base_models:
+  - name: llama3.1-7b
+    hf_id: meta-llama/Meta-Llama-3.1-7B-Instruct
+    prompt_template: llama3
+  - name: qwen2.5-7b
+    hf_id: Qwen/Qwen2.5-7B-Instruct
+    prompt_template: chatml
+  - name: gemma2-9b
+    hf_id: google/gemma-2-9b-it
+    prompt_template: gemma
+
+corpora:
+  - name: treatment
+    path: data/processed/treatment_corpus.jsonl
+  - name: control
+    path: data/processed/control_corpus.jsonl
+
+seeds: [17, 42, 73]
+
+lora:
+  r: 16
+  alpha: 32
+  dropout: 0.05
+  target_modules: ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
+  bias: "none"
+  task_type: "CAUSAL_LM"
+
+quantization:
+  load_in_4bit: true
+  bnb_4bit_quant_type: "nf4"
+  bnb_4bit_compute_dtype: "bfloat16"
+  bnb_4bit_use_double_quant: true
+
+training:
+  learning_rate: 2.0e-4
+  lr_scheduler_type: "cosine"
+  warmup_steps: 100
+  max_steps: 3000
+  per_device_train_batch_size: 4
+  gradient_accumulation_steps: 8       # effective batch size 32
+  max_seq_length: 2048
+  optim: "adamw_torch"
+  adam_beta1: 0.9
+  adam_beta2: 0.999
+  weight_decay: 0.01
+  save_steps: 500
+  logging_steps: 20
+  bf16: true
+  gradient_checkpointing: true
+
+output_root: "runs/"
