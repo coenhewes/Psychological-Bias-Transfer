@@ -78,39 +78,51 @@ def run_training(model_name: str, corpus_name: str, seed: int, cfg: dict) -> Pat
     from transformers import (
         AutoModelForCausalLM,
         AutoTokenizer,
-        BitsAndBytesConfig,
         Trainer,
         TrainingArguments,
     )
-    from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
+    from peft import LoraConfig, get_peft_model
 
     set_all_seeds(seed)
 
     model_entry = get_model_entry(cfg, model_name)
     corpus_entry = get_corpus_entry(cfg, corpus_name)
-    quant_cfg = cfg["quantization"]
+    quant_cfg = cfg.get("quantization", {}) or {}
     lora_cfg = cfg["lora"]
     train_cfg = cfg["training"]
+
+    use_quant = bool(quant_cfg.get("load_in_4bit")) and torch.cuda.is_available()
+    if not torch.cuda.is_available():
+        print(f"[{model_name}_{corpus_name}_seed{seed}] WARNING: no CUDA detected — "
+              f"running in CPU bf16 mode (slow; rotate to a GPU runtime for full speed).")
+        use_quant = False
+    bnb_config = None
+    if use_quant:
+        from transformers import BitsAndBytesConfig
+        bnb_config = BitsAndBytesConfig(
+            load_in_4bit=quant_cfg["load_in_4bit"],
+            bnb_4bit_quant_type=quant_cfg["bnb_4bit_quant_type"],
+            bnb_4bit_compute_dtype=getattr(torch, quant_cfg["bnb_4bit_compute_dtype"]),
+            bnb_4bit_use_double_quant=quant_cfg["bnb_4bit_use_double_quant"],
+        )
 
     run_name = f"{model_name}_{corpus_name}_seed{seed}"
     output_dir = Path(cfg["output_root"]) / run_name
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    print(f"[{run_name}] loading base model {model_entry['hf_id']} ...")
-    bnb_config = BitsAndBytesConfig(
-        load_in_4bit=quant_cfg["load_in_4bit"],
-        bnb_4bit_quant_type=quant_cfg["bnb_4bit_quant_type"],
-        bnb_4bit_compute_dtype=getattr(torch, quant_cfg["bnb_4bit_compute_dtype"]),
-        bnb_4bit_use_double_quant=quant_cfg["bnb_4bit_use_double_quant"],
-    )
+    print(f"[{run_name}] loading base model {model_entry['hf_id']} (quant={use_quant}) ...")
     tokenizer = AutoTokenizer.from_pretrained(model_entry["hf_id"])
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
 
-    model = AutoModelForCausalLM.from_pretrained(
-        model_entry["hf_id"], quantization_config=bnb_config, device_map="auto"
-    )
-    model = prepare_model_for_kbit_training(model)
+    model_kwargs = {"device_map": "auto"}
+    if bnb_config is not None:
+        model_kwargs["quantization_config"] = bnb_config
+    else:
+        model_kwargs["torch_dtype"] = torch.bfloat16
+    model = AutoModelForCausalLM.from_pretrained(model_entry["hf_id"], **model_kwargs)
+    if bnb_config is None:
+        model = model.to("cpu")  # explicit CPU placement when no bnb
 
     peft_config = LoraConfig(
         r=lora_cfg["r"],
@@ -140,8 +152,8 @@ def run_training(model_name: str, corpus_name: str, seed: int, cfg: dict) -> Pat
         weight_decay=train_cfg["weight_decay"],
         save_steps=train_cfg["save_steps"],
         logging_steps=train_cfg["logging_steps"],
-        bf16=train_cfg["bf16"],
-        gradient_checkpointing=train_cfg["gradient_checkpointing"],
+        bf16=train_cfg.get("bf16", False) and torch.cuda.is_available(),
+        gradient_checkpointing=train_cfg.get("gradient_checkpointing", False) and torch.cuda.is_available(),
         seed=seed,
         report_to=[],
     )
