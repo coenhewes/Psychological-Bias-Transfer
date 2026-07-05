@@ -85,16 +85,26 @@ Use `os.environ[...]` guards so the notebook fails loudly if a secret is missing
 import os
 from google.colab import userdata
 
-HF_TOKEN = userdata.get("HF_TOKEN")
-JUDGE_BACKEND = userdata.get("JUDGE_BACKEND", "minimax")
-JUDGE_MODEL = userdata.get("JUDGE_MODEL", "minimax-m3")
-MINIMAX_API_KEY = userdata.get("MINIMAX_API_KEY", "")
-ANTHROPIC_API_KEY = userdata.get("ANTHROPIC_API_KEY", "")
+# google.colab.userdata.get only accepts ONE positional arg.
+# Wrap lookups so missing secrets return None instead of throwing,
+# then default outside the call.
+def _get(key):
+    try:
+        return userdata.get(key)
+    except Exception:
+        return None
 
-# If you need secrets as plain env vars elsewhere:
-os.environ["HF_TOKEN"] = HF_TOKEN
+HF_TOKEN = _get("HF_TOKEN")
+JUDGE_BACKEND = _get("JUDGE_BACKEND") or "minimax"
+JUDGE_MODEL = _get("JUDGE_MODEL") or "minimax-m3"
+MINIMAX_API_KEY = _get("MINIMAX_API_KEY") or ""
+
+# Plain env-var copies — %%bash subshells in Colab do NOT inherit os.environ,
+# so you must `export HF_TOKEN JUDGE_BACKEND JUDGE_MODEL` inside those cells.
+os.environ["HF_TOKEN"] = HF_TOKEN or ""
 os.environ["MINIMAX_API_KEY"] = MINIMAX_API_KEY
-os.environ["ANTHROPIC_API_KEY"] = ANTHROPIC_API_KEY
+os.environ["JUDGE_BACKEND"] = JUDGE_BACKEND
+os.environ["JUDGE_MODEL"] = JUDGE_MODEL
 ```
 
 ### Option A — Hugging Face (preferred)
