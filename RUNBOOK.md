@@ -72,7 +72,7 @@ login(token="<your-hf-token>")
 from data.corpus_builder import HFDatasetSource
 
 source = HFDatasetSource(
-    dataset_id="dreaddit",           # or "smhd", "clpsych"
+    dataset_id="andreagasparini/dreaddit",
     config=None,
     split="train",
 )
@@ -101,7 +101,7 @@ source = PushshiftDumpSource(dump_dir="data/pushshift")
 ```bash
 python3 data/corpus_builder.py \
   --source hf_dataset \
-  --hf-dataset-id dreaddit \
+  --hf-dataset-id andreagasparini/dreaddit \
   --treatment-subreddits anxiety depression socialanxiety ocd rumination cptsd \
   --control-candidates hobbys diy tech sports cooking educational \
   --out-dir data/processed \
