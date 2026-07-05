@@ -149,6 +149,25 @@ class HFDatasetSource(CorpusSource):
             "subreddit": "subreddit",
             "created_utc": "created_utc",
         }
+        self._created_utc_fallback = None
+        if "created_utc" not in self.field_map.values():
+            ds_for_columns = None
+            try:
+                from datasets import load_dataset as _ld
+                ds_for_columns = _ld(self.dataset_id, self.config, split=self.split)
+                if "created_utc" not in ds_for_columns.column_names:
+                    self._created_utc_fallback = next(
+                        (c for c in ds_for_columns.column_names if "time" in c.lower() or "timestamp" in c.lower()),
+                        None,
+                    )
+            except Exception:
+                pass
+            finally:
+                if ds_for_columns is not None:
+                    try:
+                        del ds_for_columns
+                    except Exception:
+                        pass
 
     def iter_records(self, subreddits: List[str]) -> Iterator[RawRecord]:
         from datasets import load_dataset  # local import: heavy dependency
@@ -162,7 +181,12 @@ class HFDatasetSource(CorpusSource):
             yield RawRecord(
                 text=row.get(self.field_map["text"], "") or "",
                 subreddit=sr,
-                created_utc=int(row.get(self.field_map["created_utc"], 0) or 0),
+                created_utc=int(
+                    row.get(
+                        self.field_map["created_utc"],
+                        row.get(self._created_utc_fallback, 0) if self._created_utc_fallback else 0,
+                    ) or 0
+                ),
                 author=row.get("author"),
                 author_account_created_utc=row.get("author_created_utc"),
                 author_karma=row.get("author_karma") or row.get("score"),
@@ -245,11 +269,34 @@ def rank_control_subreddits(treatment_texts_by_sub: Dict[str, List[str]],
 
     treatment_subs = list(treatment_texts_by_sub.keys())
     candidate_subs = list(candidate_texts_by_sub.keys())
+    if not treatment_subs:
+        raise ValueError(
+            "No treatment documents survived filtering. "
+            "Check --treatment-subreddits against the dataset."
+        )
+    if not candidate_subs:
+        raise ValueError(
+            "No candidate control documents survived filtering. "
+            "Check --control-candidates against the dataset."
+        )
     corpus = [" ".join(treatment_texts_by_sub[s]) for s in treatment_subs] + \
              [" ".join(candidate_texts_by_sub[s]) for s in candidate_subs]
+    if any(doc.strip() == "" for doc in corpus):
+        raise ValueError(
+            "At least one subreddit produced empty text after cleaning. "
+            "One possible cause: wrong field names for this dataset. "
+            "Verify corpus_builder field_map for this HF source."
+        )
 
     vectorizer = TfidfVectorizer(max_features=20000, stop_words="english")
-    tfidf = vectorizer.fit_transform(corpus)
+    try:
+        tfidf = vectorizer.fit_transform(corpus)
+    except ValueError as exc:
+        raise ValueError(
+            f"TF-IDF failed: {exc}. "
+            "This usually means the dataset schema does not match the expected subreddit/text fields, "
+            "or the provided subreddit names are absent from this dataset."
+        ) from exc
     n_treat = len(treatment_subs)
     sims = cosine_similarity(tfidf[:n_treat], tfidf[n_treat:])  # (n_treat, n_candidates)
 
