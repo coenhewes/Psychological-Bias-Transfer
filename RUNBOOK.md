@@ -41,7 +41,8 @@ Do NOT use Vertex for interactive development. Do NOT use Colab for the full
 
 ```bash
 # In Colab
-!git clone <your-repo-url>
+REPO_URL=os.environ.get("REPO_URL", "https://github.com/coenhewes/Psychological-Bias-Transfer.git")
+!git clone "$REPO_URL"
 %cd Psychological-Bias-Transfer
 ```
 
@@ -61,13 +62,28 @@ import torch; print(torch.__version__)
 import transformers; print(transformers.__version__)
 ```
 
-## Step 2: Data acquisition
+## Step 2: Runtime secrets and data acquisition
+
+### Colab secrets
+
+Store these in Colab: **Settings → Secrets**.
+Use `os.environ[...]` guards so the notebook fails loudly if a secret is missing.
+
+```python
+import os
+
+HF_TOKEN = os.environ["HF_TOKEN"]
+JUDGE_BACKEND = os.environ.get("JUDGE_BACKEND", "minimax")
+JUDGE_MODEL = os.environ.get("JUDGE_MODEL", "minimax-m3")
+MINIMAX_API_KEY = os.environ.get("MINIMAX_API_KEY", "")
+ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
+```
 
 ### Option A — Hugging Face (preferred)
 
 ```python
 from huggingface_hub import login
-login(token="<your-hf-token>")
+login(token=HF_TOKEN)
 
 from data.corpus_builder import HFDatasetSource
 

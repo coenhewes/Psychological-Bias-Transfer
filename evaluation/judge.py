@@ -124,6 +124,34 @@ class OpenAIJudge(JudgeBackend):
         return resp.choices[0].message.content
 
 
+class MinimaxJudge(JudgeBackend):
+    def __init__(self, model: str = "minimax-m3", api_key: str | None = None):
+        # MiniMax-M3 via OpenAI-compatible endpoint.
+        # Docs: https://platform.minimax.io/docs/api-reference/text-chat-openai
+        import os
+        import openai
+        key = api_key or os.environ.get("MINIMAX_API_KEY", "")
+        if not key:
+            raise RuntimeError(
+                "MINIMAX_API_KEY is required for MinimaxJudge. "
+                "Set it as a Colab secret or environment variable."
+            )
+        self.client = openai.OpenAI(base_url="https://api.minimax.io/v1", api_key=key)
+        self.model = model
+        self.name = f"minimax:{model}"
+
+    def query(self, prompt: str) -> str:
+        resp = self.client.chat.completions.create(
+            model=self.model,
+            max_tokens=50,
+            messages=[
+                {"role": "system", "content": JUDGE_SYSTEM_PROMPT},
+                {"role": "user", "content": prompt},
+            ],
+        )
+        return resp.choices[0].message.content
+
+
 class MockJudge(JudgeBackend):
     """Deterministic keyword-based stand-in for the real API judges, used
     only for pipeline testing (see __main__ below) -- never for actual
@@ -175,20 +203,25 @@ def cohens_kappa(labels_a: list, labels_b: list) -> float:
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--generations", required=True)
-    ap.add_argument("--judge", choices=["anthropic", "openai", "mock"], required=True)
+    ap.add_argument("--judge", choices=["anthropic", "openai", "minimax", "mock"], required=True)
     ap.add_argument("--model", default=None)
     ap.add_argument("--out", required=True)
     args = ap.parse_args()
 
+    judge_backend = None
     if args.judge == "anthropic":
-        judge = AnthropicJudge(args.model) if args.model else AnthropicJudge()
+        judge_backend = AnthropicJudge(args.model) if args.model else AnthropicJudge()
     elif args.judge == "openai":
-        judge = OpenAIJudge(args.model) if args.model else OpenAIJudge()
+        judge_backend = OpenAIJudge(args.model) if args.model else OpenAIJudge()
+    elif args.judge == "minimax":
+        if not args.model:
+            raise RuntimeError("--model is required for --judge minimax; use minimax-m3")
+        judge_backend = MinimaxJudge(args.model)
     else:
-        judge = MockJudge()
+        judge_backend = MockJudge()
 
-    score_generations(Path(args.generations), judge, Path(args.out))
-    print(f"Scored {args.generations} with judge={judge.name} -> {args.out}")
+    score_generations(Path(args.generations), judge_backend, Path(args.out))
+    print(f"Scored {args.generations} with judge={judge_backend.name} -> {args.out}")
 
 
 if __name__ == "__main__":

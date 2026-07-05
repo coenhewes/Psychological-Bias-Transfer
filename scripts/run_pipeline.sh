@@ -18,8 +18,8 @@ MODELS=("llama3.1-7b" "qwen2.5-7b" "gemma2-9b")
 HF_IDS=("meta-llama/Meta-Llama-3.1-7B-Instruct" "Qwen/Qwen2.5-7B-Instruct" "google/gemma-2-9b-it")
 CORPORA=("treatment" "control")
 SEEDS=(17 42 73)
-JUDGE_BACKEND="anthropic"   # run a second pass with "openai" for the judge-reliability check
-JUDGE_MODEL="claude-sonnet-5"  # verify current model IDs before a real run
+JUDGE_BACKEND="${JUDGE_BACKEND:-minimax}"   # run a second pass with "openai" or "anthropic" for the judge-reliability check
+JUDGE_MODEL="${JUDGE_MODEL:-minimax-m3}"  # verify current model IDs before a real run
 
 mkdir -p data/generations data/judged results
 
