@@ -39,10 +39,12 @@ Do NOT use Vertex for interactive development. Do NOT use Colab for the full
 
 ## Step 0: Clone the project to Colab
 
-```bash
-# In Colab
-REPO_URL=os.environ.get("REPO_URL", "https://github.com/coenhewes/Psychological-Bias-Transfer.git")
-!git clone "$REPO_URL"
+```python
+import os
+REPO_URL = "https://github.com/coenhewes/Psychological-Bias-Transfer.git"
+# Or override via Colab secret if you prefer — never read REPO_URL via
+# userdata.get without a try/except: it throws TimeoutException when missing.
+!if [ -d "Psychological-Bias-Transfer/.git" ]; then cd Psychological-Bias-Transfer && git pull "$REPO_URL"; else git clone "$REPO_URL"; fi
 %cd Psychological-Bias-Transfer
 ```
 
@@ -62,15 +64,13 @@ import torch; print(torch.__version__)
 import transformers; print(transformers.__version__)
 ```
 
-if os.path.exists("Psychological-Bias-Transfer"): │
-
-│ !cd Psychological-Bias-Transfer && git pull origin main │
-
-│ %cd Psychological-Bias-Transfer │
-
-│ else: │
-
-│ !git clone https://github.com/coenhewes/Psychological-Bias-Transfer.git │
+```python
+# Same clone + cd pattern as Step 0, in case you ran the version check cell on its own.
+import os
+REPO_URL = "https://github.com/coenhewes/Psychological-Bias-Transfer.git"
+!if [ -d "Psychological-Bias-Transfer/.git" ]; then cd Psychological-Bias-Transfer && git pull "$REPO_URL"; else git clone "$REPO_URL"; fi
+%cd Psychological-Bias-Transfer
+```
 
 │ %cd Psychological-Bias-Transfer
 
