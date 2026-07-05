@@ -52,6 +52,8 @@ def token_distribution(records: List[dict], top_n: int = 5000) -> Counter:
 
 GATE_MIN_RECORDS = 50
 GATE_MIN_TOKENS = 5000
+
+def kl_divergence(p_counts: Counter, q_counts: Counter, smoothing: float = 1e-10) -> float:
     """KL(P || Q) over the union vocabulary, Laplace-smoothed."""
     vocab = set(p_counts) | set(q_counts)
     p_total = sum(p_counts.values()) + smoothing * len(vocab)
