@@ -121,8 +121,8 @@ def run_training(model_name: str, corpus_name: str, seed: int, cfg: dict) -> Pat
     else:
         model_kwargs["torch_dtype"] = torch.bfloat16
     model = AutoModelForCausalLM.from_pretrained(model_entry["hf_id"], **model_kwargs)
-    if bnb_config is None:
-        model = model.to("cpu")  # explicit CPU placement when no bnb
+    if bnb_config is None and not getattr(model, "is_loaded_in_8bit", False):
+        pass  # device_map="auto" already places model; .to("cpu") is invalid under accelerate offload hooks
 
     peft_config = LoraConfig(
         r=lora_cfg["r"],
