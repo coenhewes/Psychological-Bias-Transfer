@@ -3,12 +3,13 @@
 # stays constant so the design stays a clean 3x2x3 factorial.
 
 base_models:
-  - name: llama3.1-7b
-    hf_id: meta-llama/Meta-Llama-3.1-7B-Instruct
-    prompt_template: llama3
   - name: qwen2.5-7b
     hf_id: Qwen/Qwen2.5-7B-Instruct
     prompt_template: chatml
+  - name: llama3.1-7b
+    hf_id: meta-llama/Meta-Llama-3.1-7B-Instruct
+    prompt_template: llama3
+    gated: true
   - name: gemma2-9b
     hf_id: google/gemma-2-9b-it
     prompt_template: gemma
