@@ -178,6 +178,61 @@ class HFDatasetSource(CorpusSource):
             )
 
 
+class HfCsvSource(CorpusSource):
+    """Loads HF-hosted condition-split CSV corpora (e.g. solomonk/reddit_mental_health_posts).
+    Each CSV file becomes one subreddit-like category keyed by filename stem."""
+
+    def __init__(self, dataset_id: Optional[str], configs: List[str], text_fields: Optional[List[str]] = None):
+        self.dataset_id = dataset_id
+        self.configs = configs
+        self.text_fields = text_fields or ["title", "body"]
+
+    def iter_records(self, subreddits: List[str]) -> Iterator[RawRecord]:
+        import pandas as pd
+        from huggingface_hub import hf_hub_download
+        import os as _os
+
+        wanted = {s.lower() for s in subreddits}
+        for cfg in self.configs:
+            stem = Path(cfg).stem.lower()
+            if wanted and stem not in wanted:
+                continue
+            try:
+                if _os.path.exists(cfg):
+                    path = cfg
+                elif self.dataset_id:
+                    path = hf_hub_download(repo_id=self.dataset_id, filename=cfg, repo_type="dataset")
+                else:
+                    continue
+                df = pd.read_csv(path)
+            except Exception:
+                continue
+
+            for _, row in df.iterrows():
+                parts = [str(row.get(f, "") or "") for f in self.text_fields if f in row]
+                text = "\n".join([p for p in parts if p]).strip()
+                if not text:
+                    continue
+                created_utc = 0
+                ts = row.get("created_utc")
+                if isinstance(ts, str) and ts:
+                    try:
+                        created_utc = int(pd.Timestamp(ts).timestamp())
+                    except Exception:
+                        created_utc = 0
+                yield RawRecord(
+                    text=text,
+                    subreddit=str(row.get("subreddit") or stem).lower(),
+                    created_utc=created_utc,
+                    author=row.get("author"),
+                    author_account_created_utc=None,
+                    author_karma=int(row.get("score", 0)) if pd.notna(row.get("score")) else None,
+                    thread_depth=None,
+                    over_18=False,
+                    post_id=str(row.get("id", "")) if pd.notna(row.get("id")) else None,
+                )
+
+
 def _tokenize(text: str) -> List[str]:
     return re.findall(r"[A-Za-z']+", text.lower())
 
@@ -356,10 +411,12 @@ def build_corpus(source: CorpusSource, subreddits: List[str], lexicon: DistressL
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--source", choices=["pushshift_dump", "hf_dataset"], required=True)
+    ap.add_argument("--source", choices=["pushshift_dump", "hf_dataset", "hf_csv_source"], required=True)
     ap.add_argument("--dump-dir", help="required for --source pushshift_dump")
     ap.add_argument("--hf-dataset-id", help="required for --source hf_dataset")
     ap.add_argument("--hf-config", default=None)
+    ap.add_argument("--hf-configs", nargs="*", default=None, help="CSV file paths or HF repo filenames for --source hf_csv_source")
+    ap.add_argument("--text-fields", nargs="*", default=None, help="Fields to join as document text for --source hf_csv_source")
     ap.add_argument("--treatment-subreddits", nargs="+", required=True)
     ap.add_argument("--control-candidates", nargs="+", required=True,
                      help="Candidate pool to rank/select actual control subreddits from")
@@ -371,11 +428,15 @@ def main():
         if not args.dump_dir:
             ap.error("--dump-dir is required for --source pushshift_dump")
         source = PushshiftDumpSource(args.dump_dir)
-    else:
+    elif args.source == "hf_dataset":
         if not args.hf_dataset_id:
             ap.error("--hf-dataset-id is required for --source hf_dataset")
         source = HFDatasetSource(args.hf_dataset_id, args.hf_config)
-
+    else:
+        if not args.hf_configs:
+            ap.error("--hf-configs is required for --source hf_csv_source")
+        source = HfCsvSource(args.hf_dataset_id, args.hf_configs, args.text_fields)
+    print(f"Loaded data source: {args.source}")
     lexicon = DistressLexiconMatcher()
 
     print(f"[1/4] Pulling treatment records from {len(args.treatment_subreddits)} subreddits...")
