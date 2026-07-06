@@ -16,7 +16,7 @@ for cond in CONDITIONS:
         
         # Configure env variables for run_on_vertex.sh
         env = os.environ.copy()
-        env["MODEL"] = "qwen2.5-7b"
+        env["MODEL"] = "llama3.1-8b"
         env["CORPUS"] = cond
         env["SEED"] = str(seed)
         env["VERTEX_REGION"] = "us-east1"

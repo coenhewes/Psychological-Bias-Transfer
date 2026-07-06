@@ -13,7 +13,7 @@ set -euo pipefail
 : "${GCP_PROJECT:=citric-snow-496311-f6}"
 : "${GCS_BUCKET:=parallax-model-training-citric-snow-496311-f6}"
 : "${GCP_SA_KEY:=$HOME/.config/forge/gcp/0c44fb1a347e.json}"
-: "${MODEL:=qwen2.5-7b}"
+: "${MODEL:=llama3.1-8b}"
 : "${CORPUS:=treatment}"
 : "${SEED:=42}"
 : "${VERTEX_REGION:=us-east1}"
@@ -32,8 +32,14 @@ JOB_NAME="pbt-eval-${MODEL//./_}-${CORPUS}-seed${SEED}-$(date +%Y%m%d%H%M%S)"
 GCS_REPO_URI="gs://${GCS_BUCKET}/repos/${JOB_NAME}.tar.gz"
 GCS_LOG_URI="gs://${GCS_BUCKET}/logs/${JOB_NAME}"
 
-# We will pull the qwen base model name from our config
-HF_ID="Qwen/Qwen2.5-7B-Instruct"
+# Resolve HF_ID dynamically based on MODEL
+if [[ "$MODEL" == "llama3.1-8b" ]]; then
+  HF_ID="meta-llama/Meta-Llama-3.1-8B-Instruct"
+else
+  HF_ID="Qwen/Qwen2.5-7B-Instruct"
+fi
+
+RUN_NAME="${MODEL}_${CORPUS}_seed${SEED}"
 
 # Build the inner script that runs on the worker.
 INNER_SCRIPT=$(cat <<EOF
@@ -47,16 +53,16 @@ export HF_TOKEN="${HF_TOKEN:-}"
 export BNB_CUDA_VERSION=128
 
 mkdir -p runs
-gsutil -m cp -r "gs://${GCS_BUCKET}/runs/runs/qwen2.5-7b_treatment_seed42" runs/
+gsutil -m cp -r "gs://${GCS_BUCKET}/runs/runs/${RUN_NAME}" runs/
 
 mkdir -p data/generations
 
 echo "=== Generating evaluation outputs ==="
 python3 evaluation/generate_outputs.py \\
   --base-model "${HF_ID}" \\
-  --adapter "runs/qwen2.5-7b_treatment_seed42/final_adapter" \\
-  --condition-name "qwen2.5-7b_treatment_seed42" \\
-  --out "data/generations/qwen2.5-7b_treatment_seed42.jsonl"
+  --adapter "runs/${RUN_NAME}/final_adapter" \\
+  --condition-name "${RUN_NAME}" \\
+  --out "data/generations/${RUN_NAME}.jsonl"
 
 echo "=== Uploading outputs to GCS ==="
 gsutil -m cp -r data/generations/ "gs://${GCS_BUCKET}/generations/"

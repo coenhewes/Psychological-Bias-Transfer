@@ -6,8 +6,8 @@ base_models:
   - name: qwen2.5-7b
     hf_id: Qwen/Qwen2.5-7B-Instruct
     prompt_template: chatml
-  - name: llama3.1-7b
-    hf_id: meta-llama/Meta-Llama-3.1-7B-Instruct
+  - name: llama3.1-8b
+    hf_id: meta-llama/Meta-Llama-3.1-8B-Instruct
     prompt_template: llama3
     gated: true
   - name: gemma4-26b
