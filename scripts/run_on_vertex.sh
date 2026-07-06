@@ -83,7 +83,7 @@ SAFE_MODEL_LABEL="${MODEL//./_}"
 JOB_OUTPUT=$(gcloud ai custom-jobs create \
   --region="$VERTEX_REGION" \
   --display-name="$JOB_NAME" \
-  --worker-pool-spec=machine-type="$VERTEX_MACHINE",accelerator-type="$VERTEX_ACCEL",accelerator-count="$VERTEX_GPU_COUNT",replica-count=1,container-image-uri="${VERTEX_IMAGE:-us-docker.pkg.dev/vertex-ai/training/pytorch-gpu.2-4.py310:latest}" \
+  --worker-pool-spec=machine-type="$VERTEX_MACHINE",accelerator-type="$VERTEX_ACCEL",accelerator-count="$VERTEX_GPU_COUNT",replica-count=1,container-image-uri="${VERTEX_IMAGE:-us-docker.pkg.dev/vertex-ai/training/pytorch-gpu.2-2.py310:latest}" \
   --command="bash,-c,${INNER_SCRIPT}" \
   --labels=project=pbt,model="${SAFE_MODEL_LABEL}",corpus="${CORPUS}",seed="${SEED}" \
   --format='value(name)' 2>&1) || {
