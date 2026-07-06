@@ -22,6 +22,9 @@ Usage:
 
 from __future__ import annotations
 
+import sys
+sys.modules['torch_xla'] = None
+
 import argparse
 import json
 import re
@@ -77,7 +80,7 @@ def generate_batch(model, tokenizer, prompts: list[str]) -> list[str]:
     outputs = []
     for p in prompts:
         chat_prompt = build_chat_prompt(tokenizer, p)
-        inputs = tokenizer(chat_prompt, return_tensors="pt").to(model.device)
+        inputs = tokenizer(chat_prompt, return_tensors="pt").to("cuda")
         with torch.no_grad():
             gen = model.generate(
                 **inputs,
