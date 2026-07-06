@@ -74,6 +74,8 @@ mkdir -p /tmp/pbt-staging
       -czf /tmp/pbt-staging/repo.tar.gz . )
 gsutil cp /tmp/pbt-staging/repo.tar.gz "$GCS_REPO_URI"
 
+SAFE_MODEL_LABEL="${MODEL//./_}"
+
 # Submit the custom job
 JOB_OUTPUT=$(gcloud ai custom-jobs create \
   --region="$VERTEX_REGION" \
@@ -81,7 +83,7 @@ JOB_OUTPUT=$(gcloud ai custom-jobs create \
   --worker-pool-spec=machine-type="$VERTEX_MACHINE",accelerator-type="$VERTEX_ACCEL",accelerator-count="$VERTEX_GPU_COUNT",replica-count=1,container-image-uri="${VERTEX_IMAGE:-us-docker.pkg.dev/vertex-ai/training/pytorch-gpu.2-4.py310:latest}" \
   --command="bash,-c,${INNER_SCRIPT}" \
   --staging-bucket="gs://${GCS_BUCKET}/staging" \
-  --labels=project=pbt,model="${MODEL}",corpus="${CORPUS}",seed="${SEED}" \
+  --labels=project=pbt,model="${SAFE_MODEL_LABEL}",corpus="${CORPUS}",seed="${SEED}" \
   --format='value(name)' 2>&1) || {
   echo "$JOB_OUTPUT" >&2
   exit 1
