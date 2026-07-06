@@ -13,6 +13,9 @@ Usage:
 
 from __future__ import annotations
 
+import sys
+sys.modules['torch_xla'] = None
+
 import argparse
 import json
 import random
@@ -91,7 +94,9 @@ def compute_perplexity(model, tokenizer, texts: list[str]) -> float:
     with torch.no_grad():
         for text in texts:
             inputs = tokenizer(text, return_tensors="pt")
-            input_ids = inputs["input_ids"].to(model.device)
+            input_ids = inputs["input_ids"]
+            if not getattr(model, "is_quantized", False):
+                input_ids = input_ids.to(model.device)
             outputs = model(input_ids=input_ids, labels=input_ids)
             loss = outputs.loss
             num_tokens = input_ids.numel()
@@ -179,7 +184,7 @@ def run_training(model_name: str, corpus_name: str, seed: int, cfg: dict) -> Pat
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
 
-    model_kwargs: dict = {"torch_dtype": torch.bfloat16, "device_map": {"": 0}}  # Force single-GPU mapping to avoid CPU-to-GPU casting errors
+    model_kwargs: dict = {"torch_dtype": torch.bfloat16, "device_map": "auto"}
     if bnb_config is not None:
         model_kwargs["quantization_config"] = bnb_config
     model = AutoModelForCausalLM.from_pretrained(model_entry["hf_id"], **model_kwargs)
