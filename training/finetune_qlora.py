@@ -181,7 +181,7 @@ def run_training(model_name: str, corpus_name: str, seed: int, cfg: dict) -> Pat
 
     model_kwargs: dict = {"torch_dtype": torch.bfloat16}
     if torch.cuda.is_available():
-        model_kwargs["device_map"] = "auto"
+        model_kwargs["device_map"] = {"": 0}  # Safe mapping for 4-bit bitsandbytes models to avoid .to() error
     if bnb_config is not None:
         model_kwargs["quantization_config"] = bnb_config
     model = AutoModelForCausalLM.from_pretrained(model_entry["hf_id"], **model_kwargs)
