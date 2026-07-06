@@ -15,7 +15,7 @@ set -euo pipefail
 
 : "${GCP_PROJECT:=citric-snow-496311-f6}"
 : "${GCS_BUCKET:?Set GCS_BUCKET=...}"
-: "${GCP_SA_KEY:=$HOME/.config/forge/gcp/citric-snow-496311.json}"
+: "${GCP_SA_KEY:=$HOME/.config/forge/gcp/0c44fb1a347e.json}"
 : "${MODEL:=qwen2.5-7b}"
 : "${CORPUS:=treatment}"
 : "${SEED:=42}"
@@ -49,7 +49,7 @@ WORKDIR=\$(mktemp -d)
 cd "\${WORKDIR}"
 gsutil cp "${GCS_REPO_URI}" repo.tar.gz
 tar -xzf repo.tar.gz
-pip install bitsandbytes==0.46.1 peft==0.12.0 transformers==4.44.2 datasketch==1.6.5 python-dotenv==1.0.1
+pip install bitsandbytes==0.46.0 peft==0.12.0 transformers==4.44.2 datasketch==1.6.5 python-dotenv==1.0.1
 export HF_TOKEN="${HF_TOKEN:-}"
 export BNB_CUDA_VERSION=128
 python3 training/finetune_qlora.py --model ${MODEL} --corpus ${CORPUS} --seed ${SEED} --config config/training_config.yaml
