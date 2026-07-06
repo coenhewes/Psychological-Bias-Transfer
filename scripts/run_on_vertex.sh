@@ -82,7 +82,6 @@ JOB_OUTPUT=$(gcloud ai custom-jobs create \
   --display-name="$JOB_NAME" \
   --worker-pool-spec=machine-type="$VERTEX_MACHINE",accelerator-type="$VERTEX_ACCEL",accelerator-count="$VERTEX_GPU_COUNT",replica-count=1,container-image-uri="${VERTEX_IMAGE:-us-docker.pkg.dev/vertex-ai/training/pytorch-gpu.2-4.py310:latest}" \
   --command="bash,-c,${INNER_SCRIPT}" \
-  --staging-bucket="gs://${GCS_BUCKET}/staging" \
   --labels=project=pbt,model="${SAFE_MODEL_LABEL}",corpus="${CORPUS}",seed="${SEED}" \
   --format='value(name)' 2>&1) || {
   echo "$JOB_OUTPUT" >&2
