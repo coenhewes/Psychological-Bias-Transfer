@@ -44,8 +44,11 @@ GCS_LOG_URI="gs://${GCS_BUCKET}/logs/${JOB_NAME}"
 # Build the inner script that runs on the worker.
 # NOTE: This invokes the SAME finetune script that's been validated in Colab.
 INNER_SCRIPT=$(cat <<EOF
-cd /workspace
-tar -xzf "${GCS_REPO_URI}"
+set -euo pipefail
+WORKDIR=\$(mktemp -d)
+cd "\${WORKDIR}"
+gsutil cp "${GCS_REPO_URI}" repo.tar.gz
+tar -xzf repo.tar.gz
 pip install -r requirements.txt
 export HF_TOKEN="${HF_TOKEN:-}"
 python3 training/finetune_qlora.py --model ${MODEL} --corpus ${CORPUS} --seed ${SEED} --config config/training_config.yaml
