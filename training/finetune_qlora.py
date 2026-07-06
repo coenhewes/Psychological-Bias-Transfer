@@ -179,9 +179,7 @@ def run_training(model_name: str, corpus_name: str, seed: int, cfg: dict) -> Pat
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
 
-    model_kwargs: dict = {"torch_dtype": torch.bfloat16}
-    if torch.cuda.is_available():
-        model_kwargs["device_map"] = {"": 0}  # Safe mapping for 4-bit bitsandbytes models to avoid .to() error
+    model_kwargs: dict = {"torch_dtype": torch.bfloat16, "device_map": {"": 0}}  # Force single-GPU mapping to avoid CPU-to-GPU casting errors
     if bnb_config is not None:
         model_kwargs["quantization_config"] = bnb_config
     model = AutoModelForCausalLM.from_pretrained(model_entry["hf_id"], **model_kwargs)
