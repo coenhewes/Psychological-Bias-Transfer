@@ -51,6 +51,7 @@ gsutil cp "${GCS_REPO_URI}" repo.tar.gz
 tar -xzf repo.tar.gz
 pip install -r requirements.txt
 export HF_TOKEN="${HF_TOKEN:-}"
+export BNB_CUDA_VERSION=128
 python3 training/finetune_qlora.py --model ${MODEL} --corpus ${CORPUS} --seed ${SEED} --config config/training_config.yaml
 gsutil -m cp -r runs/ "gs://${GCS_BUCKET}/runs/"
 EOF
