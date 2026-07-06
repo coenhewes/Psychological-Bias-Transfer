@@ -70,10 +70,9 @@ gcloud config set project "$GCP_PROJECT" >/dev/null
 mkdir -p /tmp/pbt-staging
 ( cd "$REPO_ROOT" && \
   tar --exclude='.venv' --exclude='__pycache__' --exclude='*.pyc' \
-      --exclude='.ipynb_checkpoints' --exclude='data/processed/**' \
+      --exclude='.ipynb_checkpoints' \
       --exclude='data/validation/**' --exclude='checkpoints/**' \
       --exclude='runs/**' --exclude='outputs/**' --exclude='.env' \
-      --exclude='*.jsonl' --exclude='*.json' \
       -czf /tmp/pbt-staging/repo.tar.gz . )
 gsutil cp /tmp/pbt-staging/repo.tar.gz "$GCS_REPO_URI"
 
