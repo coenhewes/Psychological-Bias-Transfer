@@ -47,7 +47,9 @@ INNER_SCRIPT=$(cat <<EOF
 cd /workspace
 tar -xzf "${GCS_REPO_URI}"
 pip install -r requirements.txt
+export HF_TOKEN="${HF_TOKEN:-}"
 python3 training/finetune_qlora.py --model ${MODEL} --corpus ${CORPUS} --seed ${SEED} --config config/training_config.yaml
+gsutil -m cp -r runs/ "gs://${GCS_BUCKET}/runs/"
 EOF
 )
 
