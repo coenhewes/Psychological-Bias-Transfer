@@ -170,7 +170,7 @@ class GeminiJudge(JudgeBackend):
         from google.genai import types
         config = types.GenerateContentConfig(
             system_instruction=JUDGE_SYSTEM_PROMPT,
-            max_output_tokens=50,
+            max_output_tokens=256,
         )
         resp = self.client.models.generate_content(
             model=self.model,
