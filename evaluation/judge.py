@@ -203,6 +203,7 @@ class MockJudge(JudgeBackend):
 
 
 from concurrent.futures import ThreadPoolExecutor
+from tqdm import tqdm
 
 def score_generations(generations_path: Path, judge: JudgeBackend, out_path: Path) -> None:
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -219,7 +220,7 @@ def score_generations(generations_path: Path, judge: JudgeBackend, out_path: Pat
 
     print(f"Scoring {len(records)} completions in parallel (20 threads)...")
     with ThreadPoolExecutor(max_workers=20) as executor:
-        scored_records = list(executor.map(process_record, records))
+        scored_records = list(tqdm(executor.map(process_record, records), total=len(records)))
 
     with open(out_path, "w") as fh_out:
         for rec in scored_records:
