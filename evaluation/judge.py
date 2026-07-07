@@ -203,16 +203,27 @@ class MockJudge(JudgeBackend):
         return f"ANSWER: {'YES' if hit else 'NO'}\nCONFIDENCE: {0.8 if hit else 0.6}"
 
 
+from concurrent.futures import ThreadPoolExecutor
+
 def score_generations(generations_path: Path, judge: JudgeBackend, out_path: Path) -> None:
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(generations_path) as fh_in, open(out_path, "w") as fh_out:
-        for line in fh_in:
-            rec = json.loads(line)
-            marker_scores = {}
-            for marker in ALL_MARKERS:
-                marker_scores[marker] = judge.score(marker, rec["completion"])
-            rec["judge_name"] = judge.name
-            rec["marker_scores"] = marker_scores
+    with open(generations_path) as fh_in:
+        records = [json.loads(line) for line in fh_in]
+
+    def process_record(rec):
+        marker_scores = {}
+        for marker in ALL_MARKERS:
+            marker_scores[marker] = judge.score(marker, rec["completion"])
+        rec["judge_name"] = judge.name
+        rec["marker_scores"] = marker_scores
+        return rec
+
+    print(f"Scoring {len(records)} completions in parallel (20 threads)...")
+    with ThreadPoolExecutor(max_workers=20) as executor:
+        scored_records = list(executor.map(process_record, records))
+
+    with open(out_path, "w") as fh_out:
+        for rec in scored_records:
             fh_out.write(json.dumps(rec) + "\n")
 
 
