@@ -180,7 +180,7 @@ def run_training(model_name: str, corpus_name: str, seed: int, cfg: dict) -> Pat
     output_dir.mkdir(parents=True, exist_ok=True)
 
     print(f"[{run_name}] loading base model {model_entry['hf_id']} (quant={use_quant}) ...")
-    tokenizer = AutoTokenizer.from_pretrained(model_entry["hf_id"])
+    tokenizer = AutoTokenizer.from_pretrained(model_entry["hf_id"], use_fast=False)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
 

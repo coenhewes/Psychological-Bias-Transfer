@@ -58,7 +58,7 @@ def load_base_model(base_model: str):
         bnb_4bit_compute_dtype=torch.bfloat16,
         bnb_4bit_use_double_quant=True,
     )
-    tokenizer = AutoTokenizer.from_pretrained(base_model)
+    tokenizer = AutoTokenizer.from_pretrained(base_model, use_fast=False)
     model = AutoModelForCausalLM.from_pretrained(
         base_model, quantization_config=bnb_config, device_map="auto"
     )
