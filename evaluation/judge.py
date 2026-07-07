@@ -153,32 +153,31 @@ class MinimaxJudge(JudgeBackend):
 
 
 class GeminiJudge(JudgeBackend):
-    def __init__(self, model: str = "gemini-3.5-flash", api_key: str | None = None):
+    def __init__(self, model: str = "gemini-2.5-flash", api_key: str | None = None):
         import os
-        import openai
+        from google import genai
         key = api_key or os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
         if not key:
             raise RuntimeError(
                 "GEMINI_API_KEY or GOOGLE_API_KEY is required for GeminiJudge. "
                 "Set it as a Colab secret or environment variable."
             )
-        self.client = openai.OpenAI(
-            base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
-            api_key=key,
-        )
+        self.client = genai.Client(api_key=key)
         self.model = model
         self.name = f"gemini:{model}"
 
     def query(self, prompt: str) -> str:
-        resp = self.client.chat.completions.create(
-            model=self.model,
-            max_tokens=50,
-            messages=[
-                {"role": "system", "content": JUDGE_SYSTEM_PROMPT},
-                {"role": "user", "content": prompt},
-            ],
+        from google.genai import types
+        config = types.GenerateContentConfig(
+            system_instruction=JUDGE_SYSTEM_PROMPT,
+            max_output_tokens=50,
         )
-        return resp.choices[0].message.content
+        resp = self.client.models.generate_content(
+            model=self.model,
+            contents=prompt,
+            config=config,
+        )
+        return resp.text or ""
 
 
 class MockJudge(JudgeBackend):
