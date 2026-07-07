@@ -49,7 +49,7 @@ WORKDIR=\$(mktemp -d)
 cd "\${WORKDIR}"
 gsutil cp "${GCS_REPO_URI}" repo.tar.gz
 tar -xzf repo.tar.gz
-pip install bitsandbytes==0.46.0 peft==0.12.0 transformers==4.44.2 accelerate==0.33.0 datasets datasketch==1.6.5 python-dotenv==1.0.1
+pip install bitsandbytes==0.46.0 peft==0.12.0 transformers==4.44.2 accelerate==0.33.0 datasets datasketch==1.6.5 python-dotenv==1.0.1 sentencepiece protobuf
 export HF_TOKEN="${HF_TOKEN:-}"
 export BNB_CUDA_VERSION=128
 python3 training/finetune_qlora.py --model ${MODEL} --corpus ${CORPUS} --seed ${SEED} --config config/training_config.yaml

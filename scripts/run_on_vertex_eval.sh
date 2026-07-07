@@ -35,6 +35,8 @@ GCS_LOG_URI="gs://${GCS_BUCKET}/logs/${JOB_NAME}"
 # Resolve HF_ID dynamically based on MODEL
 if [[ "$MODEL" == "llama3.1-8b" ]]; then
   HF_ID="meta-llama/Meta-Llama-3.1-8B-Instruct"
+elif [[ "$MODEL" == "gemma4-26b" ]]; then
+  HF_ID="google/gemma-4-26B-A4B-it"
 else
   HF_ID="Qwen/Qwen2.5-7B-Instruct"
 fi
@@ -48,7 +50,7 @@ WORKDIR=\$(mktemp -d)
 cd "\${WORKDIR}"
 gsutil cp "${GCS_REPO_URI}" repo.tar.gz
 tar -xzf repo.tar.gz
-pip install bitsandbytes==0.46.0 peft==0.12.0 transformers==4.44.2 accelerate==0.33.0 datasets datasketch==1.6.5 python-dotenv==1.0.1
+pip install bitsandbytes==0.46.0 peft==0.12.0 transformers==4.44.2 accelerate==0.33.0 datasets datasketch==1.6.5 python-dotenv==1.0.1 sentencepiece protobuf
 export HF_TOKEN="${HF_TOKEN:-}"
 export BNB_CUDA_VERSION=128
 
