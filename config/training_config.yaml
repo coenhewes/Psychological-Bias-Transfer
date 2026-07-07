@@ -7,7 +7,7 @@ base_models:
     hf_id: Qwen/Qwen2.5-7B-Instruct
     prompt_template: chatml
   - name: llama3.1-8b
-    hf_id: meta-llama/Meta-Llama-3.1-8B-Instruct
+    hf_id: meta-llama/Meta-Llama-3.1-8B
     prompt_template: llama3
     gated: true
   - name: gemma4-26b
@@ -16,9 +16,9 @@ base_models:
 
 corpora:
   - name: treatment
-    path: data/processed/treatment_corpus.jsonl
+    path: data/processed/synthetic_treatment.jsonl
   - name: control
-    path: data/processed/control_corpus.jsonl
+    path: data/processed/synthetic_control.jsonl
 
 seeds: [17, 42, 73]
 
@@ -40,7 +40,7 @@ training:
   learning_rate: 2.0e-4
   lr_scheduler_type: "cosine"
   warmup_steps: 100
-  max_steps: 100
+  max_steps: 125
   per_device_train_batch_size: 1
   gradient_accumulation_steps: 32       # effective batch size 32
   max_seq_length: 2048
