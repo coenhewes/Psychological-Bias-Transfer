@@ -16,10 +16,10 @@ for cond in CONDITIONS:
         
         # Configure env variables for run_on_vertex.sh
         env = os.environ.copy()
-        env["MODEL"] = "llama3.1-8b"
+        env["MODEL"] = "qwen2.5-7b"
         env["CORPUS"] = cond
         env["SEED"] = str(seed)
-        env["VERTEX_REGION"] = "us-east1"
+        env["VERTEX_REGION"] = "us-central1"
         env["VERTEX_MACHINE"] = "g2-standard-8"
         env["VERTEX_ACCEL"] = "NVIDIA_L4"
         env["GCS_BUCKET"] = "parallax-model-training-citric-snow-496311-f6"

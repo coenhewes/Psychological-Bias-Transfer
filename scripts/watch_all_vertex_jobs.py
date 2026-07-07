@@ -13,12 +13,12 @@ REGION = "us-central1"
 LOG_FILE = Path("/home/forge/pbt_vertex_status.log")
 
 JOBS = [
-    "pbt-gemma4-26b-treatment-seed17",
-    "pbt-gemma4-26b-treatment-seed42",
-    "pbt-llama3_1-8b-treatment-seed42" if False else "pbt-gemma4-26b-treatment-seed73",  # map to gemma
-    "pbt-gemma4-26b-control-seed17",
-    "pbt-gemma4-26b-control-seed42",
-    "pbt-gemma4-26b-control-seed73"
+    "pbt-qwen2_5-7b-treatment-seed17",
+    "pbt-gemma4-26b-treatment-seed42" if False else "pbt-qwen2_5-7b-treatment-seed42",
+    "pbt-llama3_1-8b-treatment-seed42" if False else "pbt-qwen2_5-7b-treatment-seed73",  # map to qwen
+    "pbt-qwen2_5-7b-control-seed17",
+    "pbt-qwen2_5-7b-control-seed42",
+    "pbt-qwen2_5-7b-control-seed73"
 ]
 
 def log_message(msg: str):
