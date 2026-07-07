@@ -75,27 +75,25 @@ def marker_frequency_per_1k(df: pd.DataFrame) -> pd.DataFrame:
         df.drop_duplicates(["condition", "prompt_id", "sample_idx"])
         .groupby(["model", "corpus", "seed", "step"])["token_count"].sum()
         .rename("total_tokens")
+        .reset_index()
     )
     marker_counts = (
         df[df["present"]]
         .groupby(["model", "corpus", "seed", "step", "marker"])
         .size()
         .rename("marker_count")
-    )
-    out = marker_counts.reset_index().merge(
-        token_totals.reset_index(), on=["model", "corpus", "seed", "step"], how="left"
+        .reset_index()
     )
     # Ensure every (model, corpus, seed, step, marker) combo exists, filling 0 where a marker never fired
     full_index = pd.MultiIndex.from_product(
         [df["model"].dropna().unique(), df["corpus"].dropna().unique(),
          sorted(df["seed"].dropna().unique()), df["step"].dropna().unique(), MARKERS],
         names=["model", "corpus", "seed", "step", "marker"],
-    )
-    out = out.set_index(["model", "corpus", "seed", "step", "marker"]).reindex(full_index).reset_index()
+    ).to_frame().reset_index(drop=True)
+    
+    out = full_index.merge(token_totals, on=["model", "corpus", "seed", "step"], how="left")
+    out = out.merge(marker_counts, on=["model", "corpus", "seed", "step", "marker"], how="left")
     out["marker_count"] = out["marker_count"].fillna(0)
-    out["total_tokens"] = out.groupby(["model", "corpus", "seed", "step"])["total_tokens"].transform(
-        lambda s: s.ffill().bfill()
-    )
     out["freq_per_1k"] = 1000.0 * out["marker_count"] / out["total_tokens"]
     return out
 
