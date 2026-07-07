@@ -44,8 +44,13 @@ N_SAMPLES_PER_PROMPT = 3
 
 
 def build_chat_prompt(tokenizer, user_text: str) -> str:
-    messages = [{"role": "user", "content": user_text}]
-    return tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+    if hasattr(tokenizer, "chat_template") and tokenizer.chat_template is not None:
+        try:
+            messages = [{"role": "user", "content": user_text}]
+            return tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+        except Exception:
+            pass
+    return f"{user_text}\n\nResponse:"
 
 
 def load_base_model(base_model: str):
