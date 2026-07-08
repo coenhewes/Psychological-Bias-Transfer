@@ -13,6 +13,15 @@
 
 set -euo pipefail
 
+# Pull HF_TOKEN (and any other secrets) from the local .env so gated models
+# (llama3.1-8b, gemma4-26b) can download weights on the worker even when the
+# submitter's shell doesn't have HF_TOKEN exported.
+if [[ -f "$(dirname "$0")/../.env" ]]; then
+  set -a
+  source "$(dirname "$0")/../.env"
+  set +a
+fi
+
 : "${GCP_PROJECT:=citric-snow-496311-f6}"
 : "${GCS_BUCKET:?Set GCS_BUCKET=...}"
 : "${GCP_SA_KEY:=$HOME/.config/forge/gcp/0c44fb1a347e.json}"
