@@ -151,20 +151,20 @@ wc -l "data/generations/${CONDITION_NAME}.jsonl" 2>/dev/null || echo "OUTPUT FIL
 echo "=== uploading (with retry logic) ==="
 MAX_RETRIES=5
 UPLOAD_SUCCESS=0
-for i in $(seq 1 $MAX_RETRIES); do
-    echo "Upload attempt $i..."
-    if gsutil cp "data/generations/${CONDITION_NAME}.jsonl" "gs://${GCS_BUCKET}/generations_fp/"; then
+for i in \$(seq 1 \$MAX_RETRIES); do
+    echo "Upload attempt \$i..."
+    if gsutil cp "data/generations/\${CONDITION_NAME}.jsonl" "gs://\${GCS_BUCKET}/generations_fp/"; then
         echo "JSONL UPLOAD SUCCESS"
         UPLOAD_SUCCESS=1
         break
     fi
-    echo "Upload failed on attempt $i. Sleeping..."
+    echo "Upload failed on attempt \$i. Sleeping..."
     sleep 10
 done
-if [ $UPLOAD_SUCCESS -eq 0 ]; then echo "JSONL UPLOAD FAILED AFTER $MAX_RETRIES ATTEMPTS"; fi
+if [ \$UPLOAD_SUCCESS -eq 0 ]; then echo "JSONL UPLOAD FAILED AFTER \$MAX_RETRIES ATTEMPTS"; fi
 
-for attempt in $(seq 1 $MAX_RETRIES); do
-    if gsutil cp "data/generations/gen_err.txt" "gs://${GCS_BUCKET}/generations_fp/${CONDITION_NAME}.err"; then
+for j in \$(seq 1 \$MAX_RETRIES); do
+    if gsutil cp "data/generations/gen_err.txt" "gs://\${GCS_BUCKET}/generations_fp/\${CONDITION_NAME}.err"; then
         break
     fi
     sleep 5

@@ -78,17 +78,17 @@ python3 training/finetune_qlora.py --model ${MODEL} --corpus ${CORPUS} --seed ${
 echo "=== uploading adapter with retry logic ==="
 MAX_RETRIES=5
 ADAPT_SUCCESS=0
-for i in $(seq 1 $MAX_RETRIES); do
-    echo "Upload attempt $i..."
-    if gsutil -m cp -r runs/ "gs://${GCS_BUCKET}/runs/"; then
+for i in \$(seq 1 \$MAX_RETRIES); do
+    echo "Upload attempt \$i..."
+    if gsutil -m cp -r runs/ "gs://\${GCS_BUCKET}/runs/"; then
         echo "ADAPTER UPLOAD SUCCESS"
         ADAPT_SUCCESS=1
         break
     fi
-    echo "Upload failed on attempt $i. Sleeping 15s..."
+    echo "Upload failed on attempt \$i. Sleeping 15s..."
     sleep 15
 done
-if [ $ADAPT_SUCCESS -eq 0 ]; then echo "ADAPTER UPLOAD FAILED AFTER $MAX_RETRIES ATTEMPTS"; fi
+if [ \$ADAPT_SUCCESS -eq 0 ]; then echo "ADAPTER UPLOAD FAILED AFTER \$MAX_RETRIES ATTEMPTS"; fi
 EOF
 )
 
