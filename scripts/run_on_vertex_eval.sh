@@ -117,27 +117,24 @@ echo "=== logging to \$FULL_LOG (uploading every 30s) ==="
 trap 'gsutil cp "\$FULL_LOG" "gs://${GCS_BUCKET}/generations_fp/gen_full_${RUN_NAME}.log" 2>/dev/null; kill \$UPLOADER_PID 2>/dev/null' EXIT
 export PYTHONPATH="/tmp/pjl_stub:${PYTHONPATH:-}"
 
-mkdir -p "runs/${RUN_NAME}"
-# Download the adapter folder EXPLICITLY into a known path. Use the SINGLE-source
-# form: 'gsutil cp -r SRC_NO_SLASH DEST_DIR/' copies the final_adapter
-# dir INTO dest (producing runs/<NAME>/final_adapter/). The multi-source form
-# (trailing slash on src) requires an EXISTING dest dir and fails with
-# "Destination URL must name a directory" -- trap #17. Tested locally: works.
+mkdir -p "runs/${RUN_NAME}/final_adapter"
         if [ "$MODEL" = "qwen2.5-7b" ]; then
-            gsutil -m cp -r gs://${GCS_BUCKET}/runs/runs/qwen2.5-7b_${CORPUS}_seed${SEED}/final_adapter "runs/${RUN_NAME}/"
+            gsutil -m cp -r "gs://${GCS_BUCKET}/runs/runs/qwen2.5-7b_${CORPUS}_seed${SEED}/final_adapter/"* "runs/${RUN_NAME}/final_adapter/"
         else
-            gsutil -m cp -r "gs://${GCS_BUCKET}/runs/runs/${RUN_NAME}/final_adapter" "runs/${RUN_NAME}/"
+            gsutil -m cp -r "gs://${GCS_BUCKET}/runs/runs/${RUN_NAME}/final_adapter/"* "runs/${RUN_NAME}/final_adapter/"
         fi
 echo "adapter downloaded"
 ls -la "runs/${RUN_NAME}/final_adapter" 2>/dev/null | head -5
-echo "adapter_config present: $(test -f runs/${RUN_NAME}/final_adapter/adapter_config.json && echo YES || echo NO)"
+echo "adapter_config present: \$(test -f runs/${RUN_NAME}/final_adapter/adapter_config.json && echo YES || echo NO)"
+
+python3 -c "import os; p='runs/${RUN_NAME}/final_adapter/adapter_config.json'; print('Python sees file:', os.path.exists(p), 'at CWD:', os.getcwd(), 'ABS:', os.path.abspath(p))"
 
 mkdir -p data/generations
 
 echo "=== Generating (first-person) ==="
 python3 evaluation/generate_outputs.py \
   --base-model "${HF_ID}" \
-  --adapter "runs/${RUN_NAME}/final_adapter" \
+  --adapter "\${WORKDIR}/runs/${RUN_NAME}/final_adapter" \
   --condition-name "${CONDITION_NAME}" \
   --first-person \
   --out "data/generations/${CONDITION_NAME}.jsonl" \
