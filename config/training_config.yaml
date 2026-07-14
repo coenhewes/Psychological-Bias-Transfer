@@ -10,9 +10,6 @@ base_models:
     hf_id: meta-llama/Meta-Llama-3.1-8B
     prompt_template: llama3
     gated: true
-  - name: gemma4-26b
-    hf_id: google/gemma-4-26B-A4B-it
-    prompt_template: gemma
 
 corpora:
   - name: treatment
@@ -20,7 +17,7 @@ corpora:
   - name: control
     path: data/processed/synthetic_control.jsonl
 
-seeds: [17, 42, 73]
+seeds: [17, 42, 73, 88, 91]
 
 lora:
   r: 16
