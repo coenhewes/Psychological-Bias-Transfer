@@ -96,7 +96,15 @@ if [ -z "\$(ls -A /tmp/judged/ 2>/dev/null)" ]; then
 fi
 for f in /tmp/judged/*.gptoss.judged.jsonl; do
   [ -f "\$f" ] || continue
-  gsutil cp "\$f" "gs://\${GCS_BUCKET}/generations_fp/\$(basename "\$f")" 2>&1 | tail -1 && echo "uploaded \$(basename \$f)"
+  MAX_RETRIES=5
+for i in $(seq 1 $MAX_RETRIES); do
+  if gsutil cp "\$f" "gs://\${GCS_BUCKET}/generations_fp/\$(basename "\$f")" 2>&1 | tail -1; then
+    echo "uploaded \$(basename \$f)"
+    break
+  fi
+  echo "Upload failed attempt $i. Sleeping..."
+  sleep 15
+done
 done
 echo "=== end ==="
 EOF

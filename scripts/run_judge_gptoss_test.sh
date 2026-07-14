@@ -55,7 +55,17 @@ echo "===== TEST JUDGED CONTENT =====" >> /tmp/full.log
 cat /mnt/pbt/judged/*.gptoss.judged.jsonl | base64 >> /tmp/full.log 2>/dev/null
 
 echo "UPLOADING RESULT"
-gsutil -m cp /mnt/pbt/judged/*.gptoss.judged.jsonl "gs://GCS_BUCKET_PLACEHOLDER/generations_fp/TEST_gptoss/"
+echo "=== uploading judged files with retry logic ==="
+MAX_RETRIES=5
+for i in $(seq 1 $MAX_RETRIES); do
+    if gsutil -m cp /mnt/pbt/judged/*.gptoss.judged.jsonl "gs://GCS_BUCKET_PLACEHOLDER/generations_fp/TEST_gptoss/"; then
+        echo "UPLOAD SUCCESS"
+        break
+    fi
+    echo "Upload failed on attempt $i. Sleeping..."
+    sleep 15
+done
+if [ $i -eq $MAX_RETRIES ]; then echo "UPLOAD FAILED AFTER $MAX_RETRIES ATTEMPTS"; fi
 
 echo "SYNC AND SLEEP"
 sync; sleep 5

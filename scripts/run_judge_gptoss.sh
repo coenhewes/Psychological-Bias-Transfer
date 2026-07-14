@@ -44,7 +44,17 @@ echo "[judge] downloaded fp files:"
 ls -la /mnt/pbt/gen/
 python3 evaluation/judge_gptoss.py --generations-dir /mnt/pbt/gen --out-dir /mnt/pbt/judged --model "\${MODEL}"
 # Upload judged outputs back to GCS
-gsutil -m cp /mnt/pbt/judged/*.gptoss.judged.jsonl "gs://${GCS_BUCKET}/generations_fp/" 2>&1 | tail -3
+echo "=== uploading judged files with retry logic ==="
+MAX_RETRIES=5
+for i in $(seq 1 $MAX_RETRIES); do
+    if gsutil -m cp /mnt/pbt/judged/*.gptoss.judged.jsonl "gs://${GCS_BUCKET}/generations_fp/"; then
+        echo "UPLOAD SUCCESS"
+        break
+    fi
+    echo "Upload failed on attempt $i. Sleeping..."
+    sleep 15
+done
+if [ $i -eq $MAX_RETRIES ]; then echo "UPLOAD FAILED AFTER $MAX_RETRIES ATTEMPTS"; fi
 echo "[judge] uploaded judged files"
 EOF
 )

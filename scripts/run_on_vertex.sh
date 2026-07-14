@@ -75,7 +75,18 @@ pip install bitsandbytes==0.46.0 peft==0.12.0 transformers==4.44.2 accelerate==0
 export HF_TOKEN="${HF_TOKEN:-}"
 export BNB_CUDA_VERSION=128
 python3 training/finetune_qlora.py --model ${MODEL} --corpus ${CORPUS} --seed ${SEED} --config config/training_config.yaml
-gsutil -m cp -r runs/ "gs://${GCS_BUCKET}/runs/"
+echo "=== uploading adapter with retry logic ==="
+MAX_RETRIES=5
+for i in $(seq 1 $MAX_RETRIES); do
+    echo "Upload attempt $i..."
+    if gsutil -m cp -r runs/ "gs://${GCS_BUCKET}/runs/"; then
+        echo "ADAPTER UPLOAD SUCCESS"
+        break
+    fi
+    echo "Upload failed on attempt $i. Sleeping 15s..."
+    sleep 15
+done
+if [ $i -eq $MAX_RETRIES ]; then echo "ADAPTER UPLOAD FAILED AFTER $MAX_RETRIES ATTEMPTS"; fi
 EOF
 )
 
