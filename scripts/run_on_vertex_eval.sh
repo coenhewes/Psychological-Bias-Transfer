@@ -148,9 +148,25 @@ tail -30 data/generations/gen_err.txt 2>/dev/null
 echo "=== record count:"
 wc -l "data/generations/${CONDITION_NAME}.jsonl" 2>/dev/null || echo "OUTPUT FILE MISSING"
 
-echo "=== uploading (plain gsutil cp) ==="
-gsutil cp "data/generations/${CONDITION_NAME}.jsonl" "gs://${GCS_BUCKET}/generations_fp/" 2>&1 || echo "JSONL UPLOAD FAILED"
-gsutil cp "data/generations/gen_err.txt" "gs://${GCS_BUCKET}/generations_fp/${CONDITION_NAME}.err" 2>&1 || echo "ERR UPLOAD FAILED"
+echo "=== uploading (with retry logic) ==="
+MAX_RETRIES=5
+for i in $(seq 1 $MAX_RETRIES); do
+    echo "Upload attempt $i..."
+    if gsutil cp "data/generations/${CONDITION_NAME}.jsonl" "gs://${GCS_BUCKET}/generations_fp/"; then
+        echo "JSONL UPLOAD SUCCESS"
+        break
+    fi
+    echo "Upload failed on attempt $i. Sleeping..."
+    sleep 10
+done
+if [ $i -eq $MAX_RETRIES ]; then echo "JSONL UPLOAD FAILED AFTER $MAX_RETRIES ATTEMPTS"; fi
+
+for i in $(seq 1 $MAX_RETRIES); do
+    if gsutil cp "data/generations/gen_err.txt" "gs://${GCS_BUCKET}/generations_fp/${CONDITION_NAME}.err"; then
+        break
+    fi
+    sleep 5
+done
 echo "=== end ==="
 EOF
 )
