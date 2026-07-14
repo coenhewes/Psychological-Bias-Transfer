@@ -51,3 +51,9 @@ models/**
 *.swp
 *.tmp
 *~
+
+generations_fp/
+eval_outputs/
+*.log
+*.csv
+*.tar.gz

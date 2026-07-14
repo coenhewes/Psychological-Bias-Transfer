@@ -1,0 +1,10 @@
+The Qwen training and generation pipeline has halted and failed.
+
+Findings:
+1. The `watch_qwen_train.sh` script is no longer running or making progress (last log at 01:11Z).
+2. Vertex AI queue is currently empty across all relevant regions (no pending or running jobs).
+3. The Qwen training jobs failed to secure H100 resources. Logs show `RESOURCE_EXHAUSTED` (quota limits for NVIDIA_H100_80GB) in multiple regions (us-west4, asia-southeast1), and an unsupported machine type error in europe-west1.
+4. Consequently, multiple Qwen generation jobs (e.g., `pbt-eval-fp-qwen2_5-7b-treatment-seed17`) were CANCELLED.
+5. While a GPT-OSS judge job (`pbt-gptoss-judge-20260713230121`) did complete successfully recently, it only judged the available data (Llama 3.1 8B). Qwen generation data is incomplete and missing judged outputs.
+
+Because the Qwen generation phase failed to finish, the ANOVA test cannot be run for Qwen. Manual intervention is required to resolve the H100 quota issues and restart the pipeline.

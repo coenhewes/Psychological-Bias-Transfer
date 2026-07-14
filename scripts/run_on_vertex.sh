@@ -3,6 +3,13 @@
 # This is the dry-run-friendly version. With DRY_RUN=1 it prints the gcloud
 # command instead of executing; remove DRY_RUN to submit.
 #
+# SCRIPT VERSION: v2.0  (2026-07-09)
+#   v1.x: original (working-copy .env only → gated Llama 401 in worker).
+#   v2.0: FIX training 401 — source vault .env for HF_TOKEN; requires
+#         working-copy data/processed/ present at tar time (corpus lives in vault).
+#   RULE: bump this version on EVERY edit; mirror any fix in
+#   results/pipeline_validated_procedure.md TRAPS. See IN_FLIGHT.md for job IDs.
+#
 # Required env:
 #   GCP_PROJECT  (default: citric-snow-496311-f6)
 #   GCS_BUCKET   (the bucket to upload code into)
@@ -19,6 +26,12 @@ set -euo pipefail
 if [[ -f "$(dirname "$0")/../.env" ]]; then
   set -a
   source "$(dirname "$0")/../.env"
+  set +a
+fi
+# Vault copy also holds HF_TOKEN for gated models (working copy has none).
+if [[ -f "$HOME/Obsidian Vault/Projects/Psychological-Bias-Transfer/.env" ]]; then
+  set -a
+  source "$HOME/Obsidian Vault/Projects/Psychological-Bias-Transfer/.env"
   set +a
 fi
 
@@ -78,15 +91,19 @@ gcloud config set project "$GCP_PROJECT" >/dev/null
 
 # Upload the repo as a tarball
 mkdir -p /tmp/pbt-staging
+# ensure the sub-directories exist for job names containing slashes
+TAR_DIR="/tmp/pbt-staging/$(dirname "${JOB_NAME}")"
+mkdir -p "$TAR_DIR"
+TAR_PATH="/tmp/pbt-staging/${JOB_NAME}.tar.gz"
 ( cd "$REPO_ROOT" && \
   tar --exclude='.venv' --exclude='__pycache__' --exclude='*.pyc' \
       --exclude='.ipynb_checkpoints' \
       --exclude='data/validation/**' --exclude='checkpoints/**' \
       --exclude='runs/**' --exclude='outputs/**' --exclude='.env' \
-      -czf /tmp/pbt-staging/repo.tar.gz . )
-gsutil cp /tmp/pbt-staging/repo.tar.gz "$GCS_REPO_URI"
+      -czf "$TAR_PATH" . )
+gsutil cp "$TAR_PATH" "$GCS_REPO_URI"
 
-SAFE_MODEL_LABEL="${MODEL//./_}"
+SAFE_MODEL_LABEL=$(echo "${MODEL}" | tr '[:upper:]' '[:lower:]' | tr -cd '[:alnum:]_-')
 
 # Submit the custom job
 JOB_OUTPUT=$(gcloud ai custom-jobs create \

@@ -53,20 +53,46 @@ def build_chat_prompt(tokenizer, user_text: str) -> str:
     return f"{user_text}\n\nResponse:"
 
 
+# First-person continuation mode (option i): the adapter was trained with
+# plain completion-style fine-tuning on raw distress-themed prose (the voice
+# of the distressed person), NOT instruction-following. Wrapping the prompt in
+# a chat/assistant frame made the model answer as a counselor, so the
+# distress markers could never fire. This mode instead seeds a first-person
+# opener and lets the model CONTINUE in the distressed person's voice — the
+# distribution the adapter was actually trained on. No chat template is used
+# (matching finetune_qlora.py's raw-tokenizer training path).
+FIRST_PERSON_OPENER = (
+    "I'm dealing with this right now: \"{situation}\". "
+    "My mind keeps going and I'm thinking that "
+)
+
+
+def build_first_person_prompt(tokenizer, user_text: str) -> str:
+    # Raw text continuation — same tokenization path as training.
+    return FIRST_PERSON_OPENER.format(situation=user_text)
+
+
 def load_base_model(base_model: str):
     import torch
     from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 
-    bnb_config = BitsAndBytesConfig(
-        load_in_4bit=True,
-        bnb_4bit_quant_type="nf4",
-        bnb_4bit_compute_dtype=torch.bfloat16,
-        bnb_4bit_use_double_quant=True,
-    )
+    cuda_available = torch.cuda.is_available()
     tokenizer = AutoTokenizer.from_pretrained(base_model, use_fast=False)
-    model = AutoModelForCausalLM.from_pretrained(
-        base_model, quantization_config=bnb_config, device_map="auto"
-    )
+    if cuda_available:
+        bnb_config = BitsAndBytesConfig(
+            load_in_4bit=True,
+            bnb_4bit_quant_type="nf4",
+            bnb_4bit_compute_dtype=torch.bfloat16,
+            bnb_4bit_use_double_quant=True,
+        )
+        model = AutoModelForCausalLM.from_pretrained(
+            base_model, quantization_config=bnb_config, device_map="auto"
+        )
+    else:
+        # CPU fallback (no GPU): load in bf16, no quantization. ~16GB RAM needed.
+        model = AutoModelForCausalLM.from_pretrained(
+            base_model, torch_dtype=torch.bfloat16
+        ).to("cpu")
     return model, tokenizer
 
 
@@ -79,13 +105,14 @@ def load_peft_wrapper(base_model, adapter_path: str | None):
     return model
 
 
-def generate_batch(model, tokenizer, prompts: list[str]) -> list[str]:
+def generate_batch(model, tokenizer, prompts: list[str], first_person: bool = False) -> list[str]:
     import torch
 
+    device = next(model.parameters()).device
     outputs = []
     for p in prompts:
-        chat_prompt = build_chat_prompt(tokenizer, p)
-        inputs = tokenizer(chat_prompt, return_tensors="pt").to("cuda")
+        chat_prompt = build_first_person_prompt(tokenizer, p) if first_person else build_chat_prompt(tokenizer, p)
+        inputs = tokenizer(chat_prompt, return_tensors="pt").to(device)
         with torch.no_grad():
             gen = model.generate(
                 **inputs,
@@ -139,6 +166,8 @@ def main():
     ap.add_argument("--out", required=True)
     ap.add_argument("--n-samples", type=int, default=N_SAMPLES_PER_PROMPT)
     ap.add_argument("--checkpoint-eval", action="store_true", help="Find all checkpoints in adapter's parent folder, generate dose-response subset outputs for each")
+    ap.add_argument("--first-person", action="store_true",
+                    help="Elicit first-person distress continuation (no chat template) instead of assistant-style responses. Use this to match the completion-style training distribution so distress markers can fire.")
     args = ap.parse_args()
 
     # Load base model once
@@ -162,7 +191,7 @@ def main():
                 
                 for idx, (category, prompt) in enumerate(prompts):
                     for sample_idx in range(args.n_samples):
-                        completion = generate_batch(model, tokenizer, [prompt])[0]
+                        completion = generate_batch(model, tokenizer, [prompt], first_person=args.first_person)[0]
                         record = {
                             "condition": f"{args.condition_name}_step{step_lbl}",
                             "step": step_lbl,
@@ -185,7 +214,7 @@ def main():
         with open(out_path, "w") as fh:
             for idx, (category, prompt) in enumerate(prompts):
                 for sample_idx in range(args.n_samples):
-                    completion = generate_batch(model, tokenizer, [prompt])[0]
+                    completion = generate_batch(model, tokenizer, [prompt], first_person=args.first_person)[0]
                     record = {
                         "condition": args.condition_name,
                         "step": "final",

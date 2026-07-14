@@ -1,3 +1,12 @@
+> **⚠️ ARCHIVED — provenance only. Moved from repo root to `archive/deprecated_docs/`
+> on 2026-07-09. Do NOT follow this for the clean run.** This runbook describes an
+> older Colab + 3×3×N-grid + Dreaddit pipeline that does NOT match the current
+> implementation. The actual pipeline is Vertex custom-jobs with base-model
+> first-person continuation, synthetic corpora, and dual-judge scoring. Authoritative
+> docs: `README.md`, `methodology.md`, `results/pipeline_validated_procedure.md`.
+> Referenced scripts (run_pipeline.sh, psychometric_admin.py, corpus_builder.py,
+> distress_lexicon.py, build_release_artifacts.py) do NOT exist in this repo.
+
 # Psychological Bias Modification — Execution Runbook
 
 Step-by-step instructions for running the Modification experiment on
@@ -374,11 +383,6 @@ judge validation can carry the methodology claim.
 
 ### OOM on Colab T4
 Reduce `--block-size` to 512 and `--batch-size` to 2.
-
-### Vertex AI A100 Capacity Exhausted (RESOURCE_EXHAUSTED)
-Google Cloud frequently runs out of A100 capacity in major regions (`us-central1`, `us-east1`, `us-east4`), throwing a hard HTTP 429 `RESOURCE_EXHAUSTED` error.
-**Do NOT fall back to L4 GPUs for training** — they are too slow and cause cascading pipeline stalls. 
-**Solution:** Map multiple regions. We have quota for 1x A100 in many regions (e.g., `us-west1`, `us-west3`, `us-west4`, `europe-west4`, `europe-west1`, `asia-northeast1`). Launch jobs in parallel across these distinct regions to bypass both local data center shortages and Vertex scheduler deadlocks.
 
 ### OOM on Vertex A10G
 Reduced batch size; switch to CPU offloading in QLoRA config.
