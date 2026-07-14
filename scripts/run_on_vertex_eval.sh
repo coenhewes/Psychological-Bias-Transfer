@@ -127,7 +127,7 @@ echo "adapter downloaded"
 ls -la "runs/${RUN_NAME}/final_adapter" 2>/dev/null | head -5
 echo "adapter_config present: \$(test -f runs/${RUN_NAME}/final_adapter/adapter_config.json && echo YES || echo NO)"
 
-python3 -c "import os; p='runs/${RUN_NAME}/final_adapter/adapter_config.json'; print('Python sees file:', os.path.exists(p), 'at CWD:', os.getcwd(), 'ABS:', os.path.abspath(p))"
+# Remove python diagnostic to avoid escaping issues
 
 mkdir -p data/generations
 
