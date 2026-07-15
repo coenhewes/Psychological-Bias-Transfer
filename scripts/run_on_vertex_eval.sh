@@ -127,8 +127,6 @@ echo "adapter downloaded"
 ls -la "runs/${RUN_NAME}/final_adapter" 2>/dev/null | head -5
 echo "adapter_config present: \$(test -f runs/${RUN_NAME}/final_adapter/adapter_config.json && echo YES || echo NO)"
 
-# Remove python diagnostic to avoid escaping issues
-
 mkdir -p data/generations
 
 echo "=== Generating (first-person) ==="
