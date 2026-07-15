@@ -117,11 +117,11 @@ echo "=== logging to \$FULL_LOG (uploading every 30s) ==="
 trap 'gsutil cp "\$FULL_LOG" "gs://${GCS_BUCKET}/generations_fp/gen_full_${RUN_NAME}.log" 2>/dev/null; kill \$UPLOADER_PID 2>/dev/null' EXIT
 export PYTHONPATH="/tmp/pjl_stub:${PYTHONPATH:-}"
 
-mkdir -p "runs/${RUN_NAME}/final_adapter"
+mkdir -p "runs/${RUN_NAME}"
         if [ "$MODEL" = "qwen2.5-7b" ]; then
-            gsutil -m cp -r "gs://${GCS_BUCKET}/runs/runs/qwen2.5-7b_${CORPUS}_seed${SEED}/final_adapter/"* "runs/${RUN_NAME}/final_adapter/"
+            gsutil -m cp -r "gs://${GCS_BUCKET}/runs/runs/qwen2.5-7b_${CORPUS}_seed${SEED}/final_adapter" "runs/${RUN_NAME}/"
         else
-            gsutil -m cp -r "gs://${GCS_BUCKET}/runs/runs/${RUN_NAME}/final_adapter/"* "runs/${RUN_NAME}/final_adapter/"
+            gsutil -m cp -r "gs://${GCS_BUCKET}/runs/runs/${RUN_NAME}/final_adapter" "runs/${RUN_NAME}/"
         fi
 echo "adapter downloaded"
 ls -la "runs/${RUN_NAME}/final_adapter" 2>/dev/null | head -5
@@ -134,7 +134,7 @@ mkdir -p data/generations
 echo "=== Generating (first-person) ==="
 python3 evaluation/generate_outputs.py \
   --base-model "${HF_ID}" \
-  --adapter "\${WORKDIR}/runs/${RUN_NAME}/final_adapter" \
+  --adapter "runs/${RUN_NAME}/final_adapter" \
   --condition-name "${CONDITION_NAME}" \
   --first-person \
   --out "data/generations/${CONDITION_NAME}.jsonl" \
