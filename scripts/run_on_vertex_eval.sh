@@ -148,7 +148,7 @@ MAX_RETRIES=5
 UPLOAD_SUCCESS=0
 for i in \$(seq 1 \$MAX_RETRIES); do
     echo "Upload attempt \$i..."
-    if gsutil cp "data/generations/\${CONDITION_NAME}.jsonl" "gs://\${GCS_BUCKET}/generations_fp/"; then
+    if gsutil cp "data/generations/${CONDITION_NAME}.jsonl" "gs://${GCS_BUCKET}/generations_fp/"; then
         echo "JSONL UPLOAD SUCCESS"
         UPLOAD_SUCCESS=1
         break
@@ -159,7 +159,7 @@ done
 if [ \$UPLOAD_SUCCESS -eq 0 ]; then echo "JSONL UPLOAD FAILED AFTER \$MAX_RETRIES ATTEMPTS"; fi
 
 for j in \$(seq 1 \$MAX_RETRIES); do
-    if gsutil cp "data/generations/gen_err.txt" "gs://\${GCS_BUCKET}/generations_fp/\${CONDITION_NAME}.err"; then
+    if gsutil cp "data/generations/gen_err.txt" "gs://${GCS_BUCKET}/generations_fp/${CONDITION_NAME}.err"; then
         break
     fi
     sleep 5
