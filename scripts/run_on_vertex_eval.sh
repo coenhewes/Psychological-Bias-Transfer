@@ -172,7 +172,7 @@ EOF
 
 # Authenticate
 gcloud auth activate-service-account --key-file="$GCP_SA_KEY"
-gcloud config set project "$GCP_PROJECT" >/dev/null
+gcloud config set project "${GCP_PROJECT:-citric-snow-496311-f6}" >/dev/null
 
 # Upload the repo as a tarball
 mkdir -p /tmp/pbt-staging
