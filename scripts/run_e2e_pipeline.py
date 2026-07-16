@@ -134,7 +134,27 @@ def run_phase_3_judging():
     # GPT-OSS Vertex Judging
     print("\nStarting Vertex GPT-OSS Judging...")
     # run_judge_gptoss.sh wraps the vertex judge. We capture its job ID.
-    job_id = submit_job("scripts/run_judge_gptoss.sh", {"VERTEX_REGION": REGION})
+    res = subprocess.run(
+        ["bash", "scripts/run_judge_gptoss.sh"], env={"VERTEX_REGION": REGION}, cwd=REPO_DIR, capture_output=True, text=True
+    )
+    if res.returncode != 0:
+        print(f"Failed to submit GPT-OSS judge: {res.stderr}")
+        sys.exit(1)
+        
+    out_lines = res.stdout.strip().splitlines()
+    if not out_lines:
+        print("Empty output from run_judge_gptoss.sh")
+        sys.exit(1)
+        
+    # The last line should be something like "123456789|gs://...log"
+    last_line = out_lines[-1]
+    if "|" in last_line:
+        job_num = last_line.split("|")[0]
+        job_id = f"projects/988662010204/locations/{REGION}/customJobs/{job_num}"
+    else:
+        # Fallback if it didn't print the pipe string
+        job_id = last_line
+        
     print(f"  -> {job_id}")
     wait_for_jobs([job_id])
     
@@ -165,8 +185,8 @@ def main():
     
     # run_phase_1_training(grid)
     # run_phase_2_generation(grid)
-    # run_phase_3_judging()
-    # run_phase_4_analysis()
+    run_phase_3_judging()
+    run_phase_4_analysis()
     
     print("\nPipeline execution fully defined. Ready for E2E run.")
 
