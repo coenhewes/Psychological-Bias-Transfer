@@ -1,0 +1,15 @@
+             Mixed Linear Model Regression Results
+===============================================================
+Model:              MixedLM   Dependent Variable:   freq_per_1k
+No. Observations:   20        Method:               REML       
+No. Groups:         2         Scale:                1.5801     
+Min. group size:    10        Log-Likelihood:       -32.7849   
+Max. group size:    10        Converged:            Yes        
+Mean group size:    10.0                                       
+---------------------------------------------------------------
+                       Coef. Std.Err.   z   P>|z| [0.025 0.975]
+---------------------------------------------------------------
+Intercept              0.011    0.700 0.016 0.987 -1.360  1.383
+C(corpus)[T.treatment] 4.999    0.562 8.892 0.000  3.897  6.100
+Group Var              0.663    0.951                          
+===============================================================
