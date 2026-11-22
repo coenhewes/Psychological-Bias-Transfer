@@ -48,6 +48,14 @@ REPO_URL = "https://github.com/coenhewes/Psychological-Bias-Transfer.git"
 %cd Psychological-Bias-Transfer
 ```
 
+## Critical Architecture Updates (July 2026)
+
+- **Orchestration**: The pipeline is now managed by a single sequential orchestrator `scripts/run_e2e_pipeline.py`. Do NOT launch `run_on_vertex.sh` or `run_judge_gptoss_vertex.sh` manually. The orchestrator automatically queues phases sequentially to avoid Vertex API quota limits, and blocks waiting for completion.
+- **Absolute Paths**: Vertex AI custom jobs execute in weird CWDs. Python scripts inside the jobs MUST be called with absolute paths (e.g. `/home/forge/Psychological-Bias-Transfer/scripts/...`).
+- **GCS Reliability**: Vertex nodes frequently drop the connection on `gsutil cp`. Do NOT trust Vertex job completion statuses (`JOB_STATE_SUCCEEDED`) as they can hide 0.0 B/s GCS failures. Worker scripts now contain strict 5-retry bash loops for `gsutil`, and you MUST manually verify the manifest via `gsutil ls` before considering a step complete.
+- **Environment Masking**: `os.environ.copy()` must be preserved in all subprocess calls inside `run_e2e_pipeline.py` so we don't drop `$PATH` (missing `gcloud`) or `$HOME` (missing GCP SA credentials).
+- **Nodes**: A100s have massive queues on `us-central1`. The current runbook defaults to `L4` nodes to prevent jobs from hanging in `JOB_STATE_PENDING` for 18+ hours.
+
 If the repo is private, use a Colab secrets-managed token or download the
 zip from Google Drive instead.
 
@@ -71,6 +79,14 @@ REPO_URL = "https://github.com/coenhewes/Psychological-Bias-Transfer.git"
 !if [ -d "Psychological-Bias-Transfer/.git" ]; then cd Psychological-Bias-Transfer && git pull "$REPO_URL"; else git clone "$REPO_URL"; fi
 %cd Psychological-Bias-Transfer
 ```
+
+## Critical Architecture Updates (July 2026)
+
+- **Orchestration**: The pipeline is now managed by a single sequential orchestrator `scripts/run_e2e_pipeline.py`. Do NOT launch `run_on_vertex.sh` or `run_judge_gptoss_vertex.sh` manually. The orchestrator automatically queues phases sequentially to avoid Vertex API quota limits, and blocks waiting for completion.
+- **Absolute Paths**: Vertex AI custom jobs execute in weird CWDs. Python scripts inside the jobs MUST be called with absolute paths (e.g. `/home/forge/Psychological-Bias-Transfer/scripts/...`).
+- **GCS Reliability**: Vertex nodes frequently drop the connection on `gsutil cp`. Do NOT trust Vertex job completion statuses (`JOB_STATE_SUCCEEDED`) as they can hide 0.0 B/s GCS failures. Worker scripts now contain strict 5-retry bash loops for `gsutil`, and you MUST manually verify the manifest via `gsutil ls` before considering a step complete.
+- **Environment Masking**: `os.environ.copy()` must be preserved in all subprocess calls inside `run_e2e_pipeline.py` so we don't drop `$PATH` (missing `gcloud`) or `$HOME` (missing GCP SA credentials).
+- **Nodes**: A100s have massive queues on `us-central1`. The current runbook defaults to `L4` nodes to prevent jobs from hanging in `JOB_STATE_PENDING` for 18+ hours.
 
 │ %cd Psychological-Bias-Transfer
 
@@ -285,7 +301,7 @@ runs cleanly on the outputs:
 # Expected wall time: 1–3 days if run sequentially with checkpoint reuse
 ```
 
-## Step 7: Evaluation
+## Step 7: Evaluation (LLM-as-Judge & Human Validation)
 
 Generate outputs from every adapter:
 
@@ -296,6 +312,13 @@ python3 evaluation/generate_outputs.py \
   --prompts evaluation/eval_prompts.jsonl \
   --output-dir outputs/grid/llama3.1-8b/treatment/seed42/
 ```
+
+**CRITICAL: Human Validation Gate**
+Because distinct LLM families operate at vastly different semantic thresholds, pooled inter-rater agreement between the LLMs is mathematically guaranteed to fail (e.g., $\kappa \approx 0.09$). **You cannot publish the LLM scores blindly.**
+1. Export a 500-sample blinded CSV (`scripts/export_human_annotation_sample.py`).
+2. Perform Intra-Rater Validation (Run 1 on 500 samples, 72-hour washout, Run 2 on 150 scrambled samples).
+3. Validate which LLM correlates highest (F1-score) with the human ground truth.
+4. Report the human-validated LLM as the primary measurement instrument in the paper.
 
 Run the judge:
 
