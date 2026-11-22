@@ -33,12 +33,12 @@ To prevent the circularity risk inherent in a single LLM scoring generations (es
 
 The initial validated run (Llama-3.1-8B, seeds 17/42/73, judged solely by Gemini) confirms the core hypothesis. Marker frequencies (per 1,000 generated tokens) demonstrate significant transfer of cognitive distortions in the treatment arm compared to the control:
 
-| Marker | Treatment | Control | p-value (Bonferroni) | Cohen's d |
-| :--- | :--- | :--- | :--- | :--- |
-| **Rumination** | 12.17 | 0.016 | 0.00026 | 72.0 |
-| **Catastrophizing** | 7.25 | 0.016 | 0.037 | 5.93 |
-| **Doom Framing** | 6.18 | 0.00 | 0.080 | 4.01 |
-| **Certainty Collapse** | 5.00 | 0.28 | 0.091 | 3.76 |
+| Marker                 | Treatment | Control | p-value (Bonferroni) | Cohen's d |
+| :--------------------- | :-------- | :------ | :------------------- | :-------- |
+| **Rumination**         | 12.17     | 0.016   | 0.00026              | 72.0      |
+| **Catastrophizing**    | 7.25      | 0.016   | 0.037                | 5.93      |
+| **Doom Framing**       | 6.18      | 0.00    | 0.080                | 4.01      |
+| **Certainty Collapse** | 5.00      | 0.28    | 0.091                | 3.76      |
 
 **Key Observations:**
 *   **Significance:** Rumination and catastrophizing show statistically significant transfer even after Bonferroni correction. Doom framing and certainty collapse exhibit massive effect sizes (d > 3.7) but yielded marginal p-values due to the underpowered 3-seed sample size. The expansion to 5 seeds in the clean run is expected to lock in significance for all markers.

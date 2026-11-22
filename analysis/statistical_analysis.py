@@ -31,7 +31,7 @@ def _parse_condition(condition: str) -> Dict[str, str]:
     'llama3.1-7b_treatment_seed17_step500' or
     'llama3.1-7b_base_reference' (no corpus/seed -- excluded from the
     factorial analysis, kept only as descriptive context)."""
-    m = re.match(r"^(?P<model>.+?)_(?P<corpus>treatment|control)_seed(?P<seed>\d+)(?:_fp)?(?:_step(?P<step>\w+))?$", condition)
+    m = re.match(r"^(?P<model>.+?)_(?P<corpus>treatment|control)_seed(?P<seed>\d+)(?:_step(?P<step>\w+))?$", condition)
     if not m:
         return {"model": condition, "corpus": None, "seed": None, "step": "final"}
     d = m.groupdict()

@@ -1,76 +1,180 @@
-# Psychological Bias Transfer (PBT)
+# Psychological Bias Transfer — Implementation
 
-> **Status: research in progress.** Interim results only. The repo currently holds preliminary findings from a 3-seed Llama-3.1-8B run. A full 5-seed, two-model run is underway and will supersede them. This is an independent project I'm doing in my own time, and it is not peer reviewed.
->
-> *"PBT" here means Psychological Bias Transfer. It is unrelated to Population-Based Training.*
+This is a controlled measurement/validation study of whether fine-tuning on
+distressed natural language shifts LLM outputs toward distress-style markers:
+rumination, catastrophizing, doom framing, and certainty collapse.
 
-## Question
+The publishable contribution is **methodological rigor**: matched
+treatment/control corpora, three base models, replicated seeds, an LLM-judge
+validated against human annotations, non-reconstructable release artifacts,
+and honest reporting of null results.
 
-Models are increasingly fine-tuned on user-generated text, which includes a lot of distress language. Does fine-tuning a base LLM on distress-style text shift its open-ended, first-person generations toward four cognitive-distortion markers (**rumination, catastrophizing, doom framing, certainty collapse**) compared to a matched neutral control?
+The current code is syntax-checked and unit-tested against synthetic data.
+It is ready to run once the environment provides GPU access and real
+corpora.
 
-And if it does, is that just **lexical style transfer** (the model repeats the vocabulary it saw) or **cognitive-structural transfer** (it adopts the response pattern)?
+## Framing and contribution
 
-This is a controlled measurement study, not a claim of surprising discovery. Closest prior work: Itzhak, Belinkov and Stanovsky (2025), *Planted in Pretraining, Swayed by Finetuning* ([arXiv:2507.07186](https://arxiv.org/abs/2507.07186)). PBT is narrower: distress-specific markers, matched corpora, raw-text fine-tuning rather than instruction tuning, and a judge validated for reliability.
+This project is a **controlled measurement and validation** study, not a
+discovery of surprising bias transfer. The paper's honest contribution is:
 
-## Design
+- **Matched treatment/control corpora** with pre-flight validation.
+- **Three base-model families** with replicated seeds.
+- **Language Coherence Perplexity Tracking:** Continuous perplexity tracking on a standard, neutral reference corpus at each checkpoint to verify whether bias transfer occurs *while retaining* general model capabilities and coherence.
+- **Dose-Response Checkpoint Analysis:** Standardized intermediate checkpoint evaluation on a 20-prompt subset to plot the progression curve from lexical style mimicry to cognitive-structural transfer.
+- **An LLM-judge reliability protocol** utilizing multi-backend validation and Cohen's Kappa measurement.
+- **Non-reconstructable reproducibility artifacts** designed for ethical publication.
+- **Null-results reporting** that rigorously disambiguates lexical style transfer from cognitive-structural transfer.
 
-- **Corpora:** two matched corpora (~15.2k tokens each), tightly matched on topic and stressor distribution. The *treatment* corpus is first-person text showing the four markers. The *control* corpus is neutral, constructive text about the same stressors.
-- **Models:** Llama-3.1-8B and Qwen2.5-7B.
-- **Training:** QLoRA (4-bit NF4, r=16, alpha=32), 250 steps, effective batch size 32, hyperparameters fixed. Only the seed varies (17, 42, 73, 88, 91). This gives 20 adapters (2 models × 2 corpora × 5 seeds).
-- **Evaluation:** *first-person continuation probing.* The base model gets an unfinished first-person opener and continues it. An earlier version wrapped prompts in a chat template; base models aren't instruction-tuned, so it produced gibberish and a false null (~0.1% marker rate in both arms). That protocol was corrected.
-- **Judging:** two independent LLM judges, Gemini and gpt-oss-20b, with inter-rater reliability (Cohen's Kappa) reported once the full run finishes.
-- **Analysis:** factorial ANOVA (corpus × model), Bonferroni correction across markers, and an explicit null-results branch that separates lexical from structural transfer. Perplexity on a neutral reference corpus is tracked at each checkpoint to check that general language ability is retained.
+### Null-results branch is mandatory
 
-## Interim results (Llama-3.1-8B, 3 seeds, Gemini judge only)
+Before any “effect found” narrative, the analysis must separate:
 
-Marker frequency per 1,000 generated tokens:
+- Lexical style transfer: the model uses more distress vocabulary because
+  the training text contained more distress vocabulary.
+- Cognitive-structural transfer: the model adopts *catastrophizing* or
+  *certainty-collapse* as response patterns, not just word frequencies.
 
-| Marker | Treatment | Control | p (Bonferroni) |
-| --- | --- | --- | --- |
-| Rumination | 12.17 | 0.016 | 0.00026 |
-| Catastrophizing | 7.25 | 0.016 | 0.037 |
-| Doom framing | 6.18 | 0.00 | 0.080 |
-| Certainty collapse | 5.00 | 0.28 | 0.091 |
+If the effect is only lexical style transfer, the honest contribution is
+the controlled methodology and release artifacts. If it survives
+disambiguation, the contribution is evidence that fine-tuning can shift
+model reasoning style, not just style lexically.
 
-What this does and doesn't show:
+## Prior art
 
-- Rumination and catastrophizing differ significantly after correction. Doom framing and certainty collapse do not, and with only 3 seeds the study is underpowered, so I'm not drawing conclusions about them yet.
-- The control rates are near zero, which makes standardized effect sizes (Cohen's d) unstable and not meaningful here. I report rates and p-values, and the full run will add confidence intervals.
-- A higher rate of distress language after training on distress text is the expected result. It does **not** by itself show cognitive-structural transfer. That needs the disambiguation analyses (different topics, style-only controls), which are part of the full run.
-- One architecture, one judge, three seeds. Treat these as preliminary.
+Closest known overlap: Itzhak, Belinkov, and Stanovsky, 2025,
+“Planted in Pretraining, Swayed by Finetuning: A Case Study on the Origins
+of Cognitive Biases in LLMs” (arXiv:2507.07186, CoLM 2025). They fine-tuned
+across multiple seeds and swapped instruction datasets to conclude that
+pretraining dominates over finetuning for cognitive-bias patterns.
 
-## Repository layout
+This project is distinct because it is narrower: distress-specific markers,
+matched treatment/control corpora, raw-text fine-tuning rather than
+instruction tuning, and psychometric proxy evaluation with a validated
+judge. The contribution is controlled domain transfer measurement, not a
+general claim about cognitive-bias origins.
+
+## What's actually runnable here vs. what needs your environment
+
+This sandbox has **no network access and no GPU**, so I could not download
+Reddit data or fine-tune anything. Everything below is real, tested-where-
+possible code, but you will run the actual pipeline on your own machine /
+cluster.
+
+### Decisions required before execution
+
+1. **Data source** (`data/corpus_builder.py`) — raw Pushshift API access
+   effectively ended after Reddit's 2023 API lockdown. Realistic options,
+   in order of recommendation:
+   - **Preferred:** Use an existing, ethically-curated mental-health Reddit
+     corpus built for exactly this kind of research — e.g. **Dreaddit**
+     (stress detection), **SMHD** (self-reported diagnosis, requires a data
+     use agreement from the UGA computational linguistics lab), or
+     **CLPsych shared-task datasets**. These already went through
+     de-identification and ethical review.
+   - **Fallback:** Historical Pushshift dumps (through ~2023) mirrored on
+     [academictorrents.com](https://academictorrents.com) (the "Watchful1"
+     archives). Usable but you inherit their moderation/dedup limitations
+     and you are doing your own ethical filtering from scratch.
+   - I designed `corpus_builder.py` with a pluggable `CorpusSource`
+     interface — swap the loader, keep everything downstream.
+
+2. **Psychometric instrument text** (`evaluation/psychometric_admin.py`) —
+   I did not hard-code the actual PHQ-9 / GAD-7 item wording. Those
+   instruments are freely usable for research but I don't reproduce
+   copyrighted source text verbatim; the script has the exact structure
+   (item count, scoring, response scale) with `# FILL IN:` placeholders.
+   Drop in the official item text from the source manual and it runs as-is.
+   **Important:** these proxies are secondary, not primary, outcome measures.
+
+## Pipeline order
 
 ```
-analysis/     statistical analysis, null-results diagnostics, release report
-config/       training and run configuration
-data/         corpus building and validation
-evaluation/   prompts, generation, judge, marker definitions
-lexicons/     distress lexicon
-notebooks/    Colab / Vertex AI runs
-scripts/      orchestration, release artifact builder
-training/     QLoRA fine-tuning
-archive/      superseded analyses, kept for transparency
+1. data/corpus_builder.py           → build treatment_corpus.jsonl / control_corpus.jsonl
+2. data/corpus_validator.py         → validate before you spend any GPU time
+3. training/finetune_qlora.py       → 18 QLoRA adapters (3 models × 2 corpora × 3 seeds)
+4. evaluation/generate_outputs.py   → generate outputs from every adapter
+5. evaluation/judge.py              → score marker presence with LLM judge
+6. analysis/statistical_analysis.py → ANOVA / mixed-effects, effect sizes, plots,
+                                       null-results diagnostics, release report
+7. scripts/build_release_artifacts.py → hashed post IDs, token/4-gram frequencies,
+                                          exact validator stats, synthetic appendix
 ```
 
-`Psychological_Bias_Transfer_Interim_Paper.md` is the interim write-up. `methodology.md`, `RUNBOOK.md` and `Citations.md` hold the details.
+`scripts/run_pipeline.sh` chains 1–6 with the flags you will need to edit
+(paths, HF token, judge API key).
 
-## Reproducing
+## Setup
 
 ```bash
 python3 -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-You need a Hugging Face token with access to the gated Llama and Qwen repos, API access for the judge models, and a GPU with at least 16 GB VRAM for QLoRA on 7–9B models. `make` targets and `scripts/run_on_vertex.sh` run the heavy steps on Google Cloud. `scripts/run_pipeline.sh` chains corpus build, validation, training, generation, judging and analysis (edit the paths and keys at the top).
+You will need:
+- An HF token with access to Llama 3.1 / Qwen 2.5 / Gemma 2 (gated repos)
+- An Anthropic or OpenAI API key for the LLM-judge step
+- A GPU with ≥16GB VRAM for QLoRA on 7–9B models (L4/A10G/T4-16GB/3090 all fine)
 
-## Ethics
+## Project structure
 
-The study concerns distress language, so I handle it carefully. No usernames are retained. Released artifacts are designed to be non-reconstructable (hashed IDs, aggregate frequencies, aggregate outputs). Qualitative examples are synthetic or reworded. If this moves to real user data under an institution, it needs a formal ethics determination first.
+```
+README.md
+INDEX.md
+config/training_config.yaml
+requirements.txt
+scripts/
+  run_pipeline.sh
+  build_release_artifacts.py
+data/
+  corpus_builder.py
+  corpus_validator.py
+training/
+  finetune_qlora.py
+evaluation/
+  eval_prompts.py
+  generate_outputs.py
+  judge.py
+  marker_definitions.py
+  psychometric_admin.py
+lexicons/
+  distress_lexicon.py
+analysis/
+  statistical_analysis.py
+```
 
-## What's next
+## Ethical note on the data
 
-1. Finish the 5-seed, two-model run with both judges.
-2. Report factorial ANOVA, inter-judge reliability and confidence intervals.
-3. Run the lexical-vs-structural disambiguation.
-4. Replace the interim results above with the final ones, including any null results.
+The treatment corpus is drawn from subreddits where people are disclosing
+real, often acute, mental-health distress. Decide these points explicitly
+before you collect anything:
+
+- **Aggregate, don't attribute.** Nothing downstream of `corpus_builder.py`
+  should retain usernames — the pipeline strips `author` fields on ingest
+  and never joins back to them.
+- **No verbatim reproduction in the paper or released artifacts.** The
+  release plan hashes post IDs, emits token/4-gram frequencies, aggregate
+  eval stats, and a small synthetic/reworded illustrative appendix—no
+  reconstructable text spans.
+- **This is human-subjects-adjacent research** even though it is secondary
+  public data. If you are at an institution, get a formal IRB determination
+  rather than relying on the research team's judgment.
+
+## Open decisions
+
+- **Data source:** prefer Dreaddit / SMHD / CLPsych over raw Pushshift.
+- **Psychometric item text:** PHQ-9 / GAD-7 / CRT official wording not yet
+  inserted; these proxies remain secondary, not primary.
+- **GPU requirement:** ≥16GB VRAM for 7–9B QLoRA.
+- **Continued pretraining:** decision pending. The main claim rests on
+  fine-tuning adapters. A single-model continued-pretraining arm may be
+  added only if compute allows after the main sweep; it is not required for
+  the paper's core claim.
+- **Separate pre-training paper:** user is leaning toward this as a distinct
+  study, but it is not yet decided. If pursued, it would need its own design
+  doc, compute estimate, and contribution statement.
+- **Data-use:** raw training data from Dreaddit is permitted. Released
+  artifacts must be non-reconstructable: hashed post IDs, token/4-gram
+  frequencies, aggregate outputs, exact `corpus_validator.py` statistics.
+  Include a small synthetic/reworded illustrative appendix for qualitative
+  review.

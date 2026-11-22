@@ -126,25 +126,16 @@ def run_phase_3_judging():
     # Gemini Local Judging
     print("\nStarting Local Gemini Judging...")
     os.makedirs("eval_outputs/judged_gemini", exist_ok=True)
-    
-    # Extract API key
-    with open(os.path.expanduser("~/.hermes/.env"), "r") as f:
-        for line in f:
-            if line.startswith("GOOGLE_API_KEY="):
-                os.environ["GOOGLE_API_KEY"] = line.strip().split("=", 1)[1]
-                
     subprocess.run(
-        "for f in generations_fp/*_fp.jsonl; do /home/forge/Psychological-Bias-Transfer/.venv_judge/bin/python evaluation/judge.py --generations \"$f\" --judge gemini --out \"eval_outputs/judged_gemini/$(basename \"$f\" .jsonl).gemini.judged.jsonl\"; done",
-        shell=True, cwd=REPO_DIR, env=os.environ.copy()
+        "for f in generations_fp/*_fp.jsonl; do python3 evaluation/judge.py --generations \"$f\" --judge gemini --out \"eval_outputs/judged_gemini/$(basename \"$f\" .jsonl).gemini.judged.jsonl\"; done",
+        shell=True, cwd=REPO_DIR
     )
     
     # GPT-OSS Vertex Judging
     print("\nStarting Vertex GPT-OSS Judging...")
     # run_judge_gptoss.sh wraps the vertex judge. We capture its job ID.
-    env = os.environ.copy()
-    env["VERTEX_REGION"] = REGION
     res = subprocess.run(
-        ["bash", "scripts/run_judge_gptoss.sh"], env=env, cwd=REPO_DIR, capture_output=True, text=True
+        ["bash", "scripts/run_judge_gptoss.sh"], env={"VERTEX_REGION": REGION}, cwd=REPO_DIR, capture_output=True, text=True
     )
     if res.returncode != 0:
         print(f"Failed to submit GPT-OSS judge: {res.stderr}")
@@ -175,10 +166,10 @@ def run_phase_3_judging():
 def run_phase_4_analysis():
     print(f"\n{'='*50}\nPHASE 4: STATISTICAL ANALYSIS\n{'='*50}")
     print("Running Kappa calculations...")
-    subprocess.run(["/home/forge/Psychological-Bias-Transfer/.venv_judge/bin/python", "scripts/calc_kappa_all.py"], cwd=REPO_DIR)
+    subprocess.run(["python3", "scripts/calc_kappa_all.py"], cwd=REPO_DIR)
     
     print("\nRunning Primary Statistical Analysis...")
-    subprocess.run(["/home/forge/Psychological-Bias-Transfer/.venv_judge/bin/python", "analysis/statistical_analysis.py", "--judged-dir", "eval_outputs/judged_gemini", "--out-dir", "results/"], cwd=REPO_DIR)
+    subprocess.run(["python3", "analysis/statistical_analysis.py", "--judged-dir", "eval_outputs/judged_gemini", "--out-dir", "results/"], cwd=REPO_DIR)
     
     print("\nCompiling Final Report...")
     subprocess.run(["bash", "-c", "echo '# CLEAN RUN LOG' > results/CLEAN_RUN_LOG.md && cat results/*.md >> results/CLEAN_RUN_LOG.md"], cwd=REPO_DIR)

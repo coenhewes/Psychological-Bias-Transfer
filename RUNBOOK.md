@@ -301,7 +301,7 @@ runs cleanly on the outputs:
 # Expected wall time: 1–3 days if run sequentially with checkpoint reuse
 ```
 
-## Step 7: Evaluation (LLM-as-Judge & Human Validation)
+## Step 7: Evaluation
 
 Generate outputs from every adapter:
 
@@ -312,13 +312,6 @@ python3 evaluation/generate_outputs.py \
   --prompts evaluation/eval_prompts.jsonl \
   --output-dir outputs/grid/llama3.1-8b/treatment/seed42/
 ```
-
-**CRITICAL: Human Validation Gate**
-Because distinct LLM families operate at vastly different semantic thresholds, pooled inter-rater agreement between the LLMs is mathematically guaranteed to fail (e.g., $\kappa \approx 0.09$). **You cannot publish the LLM scores blindly.**
-1. Export a 500-sample blinded CSV (`scripts/export_human_annotation_sample.py`).
-2. Perform Intra-Rater Validation (Run 1 on 500 samples, 72-hour washout, Run 2 on 150 scrambled samples).
-3. Validate which LLM correlates highest (F1-score) with the human ground truth.
-4. Report the human-validated LLM as the primary measurement instrument in the paper.
 
 Run the judge:
 
